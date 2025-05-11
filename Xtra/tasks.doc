@@ -12,3 +12,7 @@ Think about how the contents will be accessed by the users.
 * By category
 * By subcategory
 * By single content (Maybe with some similar content suggestions)
+
+
+
+The Connection String: mongodb+srv://hemantowebbd:AKvMfyIM9F0h2zQV@hemanto.t7voy.mongodb.net/
