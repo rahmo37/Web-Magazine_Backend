@@ -102,7 +102,7 @@ async function login(req, res, next) {
       httpOnly: true, // Cookie inaccessible from JavaScript on client-side, preventing XSS attacks.
       secure: process.env.NODE_ENV === "production", // Only sent over HTTPS in production.
       sameSite: "strict", // Prevents cookie from being sent with cross-site requests.
-      maxAge: 3600000, // (1 hour in milliseconds).
+      expires: new Date(Date.now() + 3600000 * 4), // 4 hr from now
     });
 
     // Send the response
