@@ -70,11 +70,13 @@ async function login(req, res, next) {
 
     // Check if the login was saved
     if (!isLoginSaved) {
-      getErrorObj(
-        isDevelopment
-          ? "Error while saving the last login field"
-          : "Internal Server Error! Please contact your administrator.",
-        500
+      return next(
+        getErrorObj(
+          isDevelopment
+            ? "Error while saving the last login field"
+            : "Internal Server Error! Please contact your administrator.",
+          500
+        )
       );
     }
 
@@ -94,6 +96,14 @@ async function login(req, res, next) {
     // Convert the employee mongo instance to js object
     const employeeData = employee.toObject();
     delete employeeData.password;
+
+    // Send JWT as an HTTP-only cookie:
+    res.cookie("token", token, {
+      httpOnly: true, // Cookie inaccessible from JavaScript on client-side, preventing XSS attacks.
+      secure: process.env.NODE_ENV === "production", // Only sent over HTTPS in production.
+      sameSite: "strict", // Prevents cookie from being sent with cross-site requests.
+      maxAge: 3600000, // (1 hour in milliseconds).
+    });
 
     // Send the response
     sendRequest({

@@ -19,6 +19,7 @@ const { dbMaintenance } = require("./helpers/scheduledTasks");
 const { hashPasswordInDatabase } = require("./helpers/hashPassword");
 const authenticateToken = require("./middlewares/jwtTokenVerify");
 const roleVerify = require("./middlewares/roleVerification");
+const cookieParser = require("cookie-parser");
 
 // Security imports
 const helmet = require("helmet");
@@ -80,7 +81,8 @@ app.use(xss());
 // Log Request Information
 app.use(requestInfo);
 
-// !Also implement cookie
+// Parse any cookie
+app.use(cookieParser());
 
 // ---------------------------------End-points---------------------------------
 // Employee Routes
