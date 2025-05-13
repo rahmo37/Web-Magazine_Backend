@@ -39,6 +39,7 @@ const {
 } = require("./routes/authentication/employeeLoginRouter");
 const { manageEmployeeRouter } = require("./routes/admin/manageEmployeeRouter");
 const { manageFdcRouter } = require("./routes/employee/manageFdcRouter");
+const { manageSdcRouter } = require("./routes/employee/manageSdcRouter");
 const {
   manageGoddoRouter,
 } = require("./routes/employee/content/manageGoddoRouter");
@@ -100,8 +101,11 @@ app.use(authenticateToken, roleVerify.isEmployee);
 // Employee Management Route
 app.use("/api/manage/employee", manageEmployeeRouter);
 
-// Creator Management Route
+// FDC Management Route
 app.use("/api/manage/fdc", manageFdcRouter);
+
+// SDC Management Route
+app.use("/api/manage/sdc", manageSdcRouter);
 
 // Content Management Route
 // Content Links

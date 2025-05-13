@@ -12,7 +12,7 @@ const {
 const roleVerify = require("../../middlewares/roleVerification");
 const getRegexForID = require("../../helpers/getRegexForID");
 
-// Get all FDCs
+// Controller files for the path "/"
 manageFdcRouter
   .route("/")
   // Get all the Fdcs
@@ -29,7 +29,6 @@ manageFdcRouter
     // Add an Fdc
     manageFdcController.addAnFdc
   );
-
 
 manageFdcRouter
   .route(`/:fdcID${getRegexForID("fdc_", 12)}`)

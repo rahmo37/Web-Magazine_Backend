@@ -34,6 +34,29 @@ SecondDegreeCreatorSchema.statics.createNewSDC = async function (
   return newSDC;
 };
 
+// Get all the SDCs
+SecondDegreeCreatorSchema.statics.getAllSDCs = function () {
+  return this.find({}).select("-__v -_id -createdAt -updatedAt");
+};
+
+SecondDegreeCreatorSchema.statics.updateAnSdc = async function (
+  sdcID,
+  sdcData
+) {
+  // Find the Sdc
+  const sdc = await this.findOne({ sdcID });
+
+  // If no Sdc is found
+  if (!sdc) {
+    throw getErrorObj("No sdc found with the provided sdcID", 400);
+  }
+
+  // Merge the updated data with the existing sdc
+  Object.assign(sdc, sdcData);
+
+  return await sdc.save();
+};
+
 // Get the SDC model keys
 SecondDegreeCreatorSchema.statics.getKeys = function () {
   // Excluded fields
@@ -60,6 +83,30 @@ SecondDegreeCreatorSchema.statics.deleteByIDs = async function (sdcIDsArr) {
   return result.deletedCount;
 };
 
+// Delete one SDC with ID
+SecondDegreeCreatorSchema.statics.deleteBySdcID = async function (
+  sdcID,
+  session = null
+) {
+  // If no sdcID is provided
+  if (!sdcID) {
+    throw new Error("sdcID is required");
+  }
+
+  // Prepare options
+  const opts = session ? { session } : {};
+
+  // Check existence (inside session if provided)
+  const existing = await this.findOne({ sdcID }, null, opts);
+  if (!existing) {
+    throw getErrorObj(`No SecondDegreeCreator found with sdcID provided`, 400);
+  }
+
+  // Delete the document (inside session if provided)
+  const result = await this.deleteOne({ sdcID }, opts);
+  return result;
+};
+
 // Get all the SDC IDs
 SecondDegreeCreatorSchema.statics.getIDs = async function (excludeID) {
   const filter = excludeID ? { sdcID: { $ne: excludeID } } : {};
@@ -67,7 +114,6 @@ SecondDegreeCreatorSchema.statics.getIDs = async function (excludeID) {
   console.log(result.map((doc) => doc.sdcID));
   return result.map((doc) => doc.sdcID);
 };
-
 
 const SecondDegreeCreator = mongoose.model(
   "SecondDegreeCreator",

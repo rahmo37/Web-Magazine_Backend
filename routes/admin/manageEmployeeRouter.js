@@ -9,14 +9,16 @@ const roleVerify = require("../../middlewares/roleVerification");
 const verifyReqBody = require("../../middlewares/verifyReqBody");
 const temporaryEndpointDisable = require("../../middlewares/temporaryEndpointDisable");
 
+
+  // Get all employees
+ manageEmployeeRouter.get("/", manageEmployeeController.getAllEmployees)
+
 // Only Root Admins are allowed
 manageEmployeeRouter.use(roleVerify.isRootAdmin);
 
 // Request to '/' url
 manageEmployeeRouter
   .route("/")
-  // Get all employees
-  .get(manageEmployeeController.getAllEmployees)
   // Create an employee
   .post(
     verifyReqBody,

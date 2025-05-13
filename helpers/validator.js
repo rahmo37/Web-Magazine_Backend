@@ -598,8 +598,8 @@ validator.employeeID = checkID("emp_", 6, "Invalid employeeID provided");
 const bioOpts = { min: 50, max: 2000 };
 const nameOpts = { min: 5, max: 300 };
 const trailerOpts = { min: 25, max: 500 };
-const aboutOpts = { min: 20, max: 2000 };
-const sectionOpts = { min: 10, max: 4000 };
+const aboutOpts = { min: 25, max: 2000 };
+const sectionOpts = { min: 25, max: 4000 };
 
 //! --------------------creatorBio
 validator.creatorBio = makeBanglaTextValidator("Creator bio", bioOpts);

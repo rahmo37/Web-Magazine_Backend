@@ -37,7 +37,7 @@ manageFdc.getAllFdc = async function (req, res, next) {
   }
 };
 
-// This function will one FDC with an ID
+// This function retrieves an FDC with a protvided fdcID ID
 manageFdc.getAnFdc = async function (req, res, next) {
   try {
     // Retrieve the fdcID
@@ -109,7 +109,7 @@ manageFdc.addAnFdc = async function (req, res, next) {
         data: newFdc,
       });
     } else {
-      return next(getErrorObj(`Unable to create Fdc at this time`));
+      return next(getErrorObj(`Unable to create an Fdc at this time`));
     }
   } catch (error) {
     return next(error);

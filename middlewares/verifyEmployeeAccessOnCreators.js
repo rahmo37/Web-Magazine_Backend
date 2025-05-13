@@ -16,6 +16,7 @@ const creatorAccess = {};
 creatorAccess.fdcModificationAccessVerify = async function (req, res, next) {
   // Retrieve the employee
   const loggedEmployee = await Employee.getEmployeeByID(req.user.ID);
+
   //If no employee found
   if (!loggedEmployee) {
     return next(
@@ -55,13 +56,13 @@ creatorAccess.fdcModificationAccessVerify = async function (req, res, next) {
   // If any employee other than the uploader is using the FDC they need approval to perform any modification
   const fdcLinks = await Link.findByAllIds({ fdcID });
 
-  // Check if at-least one employee is using the fdcID
+  // Check if at-least one employee other than the uploader is using the fdcID
   if (fdcLinks.some((link) => link.employeeID !== req.user.ID)) {
     const ok = await temporaryAllowanceCheck(req, res);
     if (!ok) {
       return next(
         getErrorObj(
-          "Updating this FDC requires Admin approval, please contact you Administrator!"
+          "Updating this FDC requires admin approval, please contact you Administrator!"
         )
       );
     }
@@ -85,7 +86,7 @@ creatorAccess.sdcModificationAccessVerify = async function (req, res, next) {
   const { sdcID } = req.params;
 
   // Get the SDC associated the ID
-  const sdc = await SecondDegreeCreator.getSdcByID("sdcID");
+  const sdc = await SecondDegreeCreator.getSdcByID(sdcID);
 
   // If no SDC found
   if (!sdc) {
@@ -108,6 +109,22 @@ creatorAccess.sdcModificationAccessVerify = async function (req, res, next) {
         401
       )
     );
+  }
+
+
+    // If any employee other than the uploader is using the FDC they need approval to perform any modification
+  const sdcLinks = await Link.findByAllIds({ sdcID });
+
+  // Check if at-least one employee other than the uploader is using the fdcID
+  if (sdcLinks.some((link) => link.employeeID !== req.user.ID)) {
+    const ok = await temporaryAllowanceCheck(req, res);
+    if (!ok) {
+      return next(
+        getErrorObj(
+          "Updating this SDC requires admin approval, please contact you Administrator!"
+        )
+      );
+    }
   }
 
   return next();
