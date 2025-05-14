@@ -66,7 +66,7 @@ app.use(
 //Set security headers
 app.use(helmet());
 
-// Enable cors-origin requests. During development only allowing front-end development team
+// Enabling cors-origin requests. During development only allowing front-end development team
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8000",
