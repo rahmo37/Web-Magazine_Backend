@@ -21,7 +21,11 @@ jobs:
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@107.22.70.74 << 'EOF'
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
             cd /home/ubuntu/Web-Magazine_Backend
             git pull origin main
-            /home/ubuntu/.nvm/versions/node/v22.15.0/bin/pm2 restart hemanto-backend
+            pm2 restart hemanto-backend
           EOF
