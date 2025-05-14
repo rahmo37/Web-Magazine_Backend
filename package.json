@@ -2,7 +2,7 @@
   "name": "web-magazine",
   "version": "1.0.0",
   "description": "A web magazine (hemanto)",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "start": "cls && cross-env NODE_ENV=development nodemon app.js",
     "production": "cls && cross-env NODE_ENV=production nodemon app.js"
