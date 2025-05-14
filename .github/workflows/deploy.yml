@@ -20,7 +20,7 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@YOUR_EC2_PUBLIC_IP << 'EOF'
+          ssh -o StrictHostKeyChecking=no ubuntu@107.22.70.74 << 'EOF'
             cd /home/ubuntu/Web-Magazine_Backend
             git pull origin main
             pm2 restart hemanto-backend
