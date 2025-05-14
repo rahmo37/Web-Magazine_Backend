@@ -18,7 +18,7 @@ manageLink.updateContentLink = async function (req, res, next) {
     const { contentID } = req.params;
 
     // Locate the link
-    const link = await this.getByContentID(contentID);
+    const link = await Link.getByContentID(contentID);
     if (!link) {
       return next(getErrorObj("No link found with the provided contentID"));
     }
@@ -42,9 +42,11 @@ manageLink.updateContentLink = async function (req, res, next) {
 
     // Retrieve the logged-in user
     const loggedInEmployee = req.user;
-
     // Check if the employee has full access
     const hasFullAccess = checkAccess(loggedInEmployee);
+
+    // Convert the content status to lowercase
+    linkData.contentStatus &&= linkData.contentStatus.toLowerCase();
 
     // Check if the employee is not an admin but has more than one property in the body, and it is set to pending. Additionally they can only set it to pending if the content is in editing phase
     if (!hasFullAccess) {
@@ -56,7 +58,7 @@ manageLink.updateContentLink = async function (req, res, next) {
       ) {
         return next(
           getErrorObj(
-            `You can only update the contentStatus to "pending". However, you cannot set it to "pending" if it's already in "pending" or "ready" phase.`,
+            `You can only update the contentStatus to 'pending'. Note: you cannot set it to 'pending' if it's already in 'pending' or 'ready' phase.`,
             400
           )
         );
@@ -103,6 +105,32 @@ manageLink.updateToHemantoFdc = async function (req, res, next) {
       statusCode: 200,
       message:
         "Provided FdcID's corresponding links are updated to HemantoFdcID",
+      data: updateCount.modifiedCount,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+manageLink.updateToHemantoSdc = async function (req, res, next) {
+  try {
+    // Retrieve the sdcID
+    const { sdcID } = req.params;
+
+    // Make the update
+    const updateCount = await Link.updateSdcIDToHemantoID(sdcID);
+
+    // If modified count is 0
+    if (updateCount.modifiedCount === 0) {
+      return next(getErrorObj());
+    }
+
+    // Send the request
+    sendRequest({
+      res,
+      statusCode: 200,
+      message:
+        "Provided SdcID's corresponding links are updated to HemantoSdcID",
       data: updateCount.modifiedCount,
     });
   } catch (error) {

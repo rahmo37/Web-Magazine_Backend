@@ -66,8 +66,27 @@ app.use(
 //Set security headers
 app.use(helmet());
 
-// Enable cors-origin requests
-app.use(cors());
+// Enable cors-origin requests. During development only allowing front-end development team
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:8000",
+  "http://localhost:5172",
+  "http://localhost:5173",
+];
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (like Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // Data parsing middleware
 app.use(bodyParse.json());
