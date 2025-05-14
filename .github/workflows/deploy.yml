@@ -23,5 +23,5 @@ jobs:
           ssh -o StrictHostKeyChecking=no ubuntu@107.22.70.74 << 'EOF'
             cd /home/ubuntu/Web-Magazine_Backend
             git pull origin main
-            pm2 restart hemanto-backend
+            /home/ubuntu/.nvm/versions/node/v22.15.0/bin/pm2 restart hemanto-backend
           EOF
