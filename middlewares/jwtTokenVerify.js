@@ -21,7 +21,7 @@ const authenticateToken = (req, res, next) => {
   // If token is not found, return error
   if (!token) {
     const err = new Error(
-      "Missing token... please obtain an authorization token before proceeding"
+      "Missing token! Please obtain an authorization token before proceeding"
     );
     err.status = 403;
     return next(err);
