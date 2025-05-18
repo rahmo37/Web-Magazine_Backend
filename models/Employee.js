@@ -39,6 +39,10 @@ const EmployeeSchema = new Schema(
       gender: { type: String, required: true },
       dateOfBirth: { type: Date, required: true },
     },
+    employeePreferences: {
+      profilePicture: String,
+      themeColor: String,
+    },
   },
   { collection: "employee" }
 );
