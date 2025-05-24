@@ -13,6 +13,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 const bodyParse = require("body-parser");
+const parseImageMeta = require("./middlewares/parseImageMeta");
 const requestInfo = require("./middlewares/logRequestInformation");
 const dbConfig = require("./config/db");
 const { dbMaintenance } = require("./helpers/scheduledTasks");
@@ -48,6 +49,12 @@ const {
   manageLinkRouter,
 } = require("./routes/employee/content/manageLinkRouter");
 
+// ? Test Image Upload Imports
+const {
+  uploadBatchedImages,
+} = require("./controllers/imageOperationsController");
+const multerImageInjection = require("./middlewares/multerImageInjection");
+
 // ---------------------------------Project variables---------------------------------
 const PORT = process.env.PORT || 8000;
 
@@ -69,6 +76,8 @@ app.use(helmet());
 // Enabling cors-origin requests. During development only allowing front-end development team. Below origins are allowed
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://127.0.0.1:5500",
+  "http://127.0.0.1:5501",
   "http://localhost:8000",
   "http://localhost:5172",
   "http://localhost:5173",
@@ -88,8 +97,11 @@ app.use(
   })
 );
 
+// Log Request Information
+app.use(requestInfo);
+
 // Data parsing middleware
-app.use(bodyParse.json());
+app.use(bodyParse.json({ limit: "50mb" }));
 
 // Mongodb query sanitize
 app.use(mongoSanitize());
@@ -97,13 +109,21 @@ app.use(mongoSanitize());
 // Cross-Site Scripting sanitization
 app.use(xss());
 
-// Log Request Information
-app.use(requestInfo);
-
 // Parse any cookie
 app.use(cookieParser());
 
 // ---------------------------------End-points---------------------------------
+// ? Image Upload Test
+app.post(
+  "/api/upload",
+  multerImageInjection,
+  parseImageMeta,
+  uploadBatchedImages,
+  (req, res, next) => {
+    res.status(200).json({ message: "Upload Done" });
+  }
+);
+
 // Employee Routes
 
 // Login route

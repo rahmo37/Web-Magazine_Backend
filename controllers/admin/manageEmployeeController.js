@@ -9,6 +9,7 @@ const { sendRequest } = require("../../helpers/sendRequest");
 const { dateAndTime } = require("../../helpers/dateAndTime");
 const { generateID } = require("../../helpers/generateID");
 const { getHashedPassword } = require("../../helpers/hashPassword");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
 
 // Module scaffolding
 const manageEmployee = {};
@@ -51,11 +52,19 @@ manageEmployee.getAnEmployee = async (req, res, next) => {
     }
 
     // Retrieve the employee
-    const employee = await Employee.getEmployeeByID(ID);
+    const employee = (await Employee.getEmployeeByID(ID))?.toObject();
 
+
+    // If no employee found
     if (!employee) {
       return next(getErrorObj(`No employee found with the provided ID`, 404));
     }
+
+    // Get signedUrl and format the image
+    employee.employeePreferences.profilePicture =
+      await generateImageUrlAndFormat(
+        employee.employeePreferences.profilePicture
+      );
 
     // Now sending the employee info
     sendRequest({
@@ -98,13 +107,14 @@ manageEmployee.addEmployee = async (req, res, next) => {
       firstName,
       lastName,
       gender,
+      profilePicture,
       dateOfBirth,
     } = passedInEmployeeInfo;
 
     // Check if the employee already exists with the email address provided
     const doesExistsWithEmail = await Employee.getEmployeeByEmail(email);
 
-    // If employee exists
+    // If employee exists with email
     if (doesExistsWithEmail) {
       return next(
         getErrorObj(
@@ -117,7 +127,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
     // Check if the employee already exists with the phone number provided
     const doesExistsWithPhone = await Employee.getEmployeeByPhone(phone);
 
-    // If employee exists
+    // If employee exists with phone
     if (doesExistsWithPhone) {
       return next(
         getErrorObj(
@@ -149,6 +159,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
       department,
       deniedDepartment,
       employeeBio: { firstName, lastName, gender, dateOfBirth },
+      employeePreferences: { profilePicture, themeColor: null },
     };
 
     // Gathering other necessary information
@@ -221,7 +232,6 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
     if (ID !== req.user.ID) {
       employeeKeysSet.add("isActiveAccount");
       employeeKeysSet.add("temporaryApproval");
-
     }
 
     // Find invalid keys

@@ -5,6 +5,7 @@ const Employee = require("../../models/Employee");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const jwtConfig = require("../../config/jwtConfig");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
 
 const { getErrorObj } = require("../../helpers/getErrorObj");
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -95,6 +96,11 @@ async function login(req, res, next) {
 
     // Convert the employee mongo instance to js object
     const employeeData = employee.toObject();
+
+    // Convert the profile picture to have the filename and the image URL
+    employeeData.employeePreferences.profilePicture = await generateImageUrlAndFormat(employeeData.employeePreferences.profilePicture);
+
+    // Delete the password when sending
     delete employeeData.password;
 
     // Send JWT as an HTTP-only cookie:

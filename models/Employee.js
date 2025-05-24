@@ -40,11 +40,11 @@ const EmployeeSchema = new Schema(
       dateOfBirth: { type: Date, required: true },
     },
     employeePreferences: {
-      profilePicture: String,
-      themeColor: String,
+      profilePicture: { type: String, required: true },
+      themeColor: { type: String, default: null },
     },
   },
-  { collection: "employee" }
+  { timestamps: true, collection: "employee" }
 );
 
 // Employee validation field
@@ -54,8 +54,11 @@ EmployeeSchema.statics.getKeys = function () {
     "employeeID",
     "_id",
     "__v",
+    "createdAt",
+    "updatedAt",
     "temporaryApproval",
     "lastLogin",
+    "themeColor",
     "accountCreated",
     "isActiveAccount",
   ];
@@ -184,6 +187,6 @@ EmployeeSchema.statics.deleteEmployeeByID = async function (ID) {
 };
 
 // Create and export Employee model
-const Employee = mongoose.model("Employee", EmployeeSchema);
+const Employee = mongoose.model("Employee", EmployeeSchema, "employee");
 
 module.exports = Employee;

@@ -1,5 +1,6 @@
 // This file implements the rate limiter module and provides general limiter and login limiter
 const rateLimit = require("express-rate-limit");
+const { getErrorObj } = require("../helpers/getErrorObj");
 
 // Object that contains the limiters
 const requestRateLimiterObj = {};
@@ -11,12 +12,8 @@ requestRateLimiterObj.general = rateLimit({
   headers: true,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: { 
-        message: "Too many request, please try again later." 
-      },
-    });
+  handler: (req, res, next) => {
+    return next(getErrorObj("Too many request, please try again later.", 429));
   },
 });
 
@@ -26,13 +23,13 @@ requestRateLimiterObj.login = rateLimit({
   headers: true,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: {
-        message:
-          "Too many unsuccessful login attempts, please try again later.",
-      },
-    });
+  handler: (req, res, next) => {
+    return next(
+      getErrorObj(
+        "Too many unsuccessful login attempts, please try again later.",
+        429
+      )
+    );
   },
 });
 
