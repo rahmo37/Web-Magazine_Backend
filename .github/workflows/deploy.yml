@@ -1,3 +1,4 @@
+# This script triggers CI/CD
 name: Deploy Backend to EC2
 
 on:
@@ -24,8 +25,8 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
             cd /home/ubuntu/Web-Magazine_Backend
             git pull origin main
+            npm ci
             pm2 restart hemanto-backend
           EOF
