@@ -71,7 +71,7 @@ scheduler.manualMaintenance = async function () {
   );
 };
 // Immediately run one maintenance upon server start up
-// scheduler.manualMaintenance();
+scheduler.manualMaintenance();
 
 // Gracefully stop cron on exit
 process.on("SIGINT", () => {

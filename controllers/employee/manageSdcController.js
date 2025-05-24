@@ -10,6 +10,7 @@ const flattenObject = require("../../helpers/flattenObject");
 const { default: mongoose } = require("mongoose");
 const { generateID } = require("../../helpers/generateID");
 const { manualMaintenance } = require("../../helpers/scheduledTasks");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
 
 // Module Scaffolding
 const manageSdc = {};
@@ -18,12 +19,24 @@ const manageSdc = {};
 manageSdc.getAllSdc = async function (req, res, next) {
   try {
     // Make a request to get all the current SDCs
-    const allSdcs = await SecondDegreeCreator.getAllSDCs();
+    let allSdcs = (await SecondDegreeCreator.getAllSDCs()).map((eachSdc) =>
+      eachSdc.toObject()
+    );
 
     // If no SDCs found
     if (!allSdcs) {
       return next(getErrorObj("No SDCs found in the repository!"));
     }
+
+    // Generate signedUrl and format
+    allSdcs = await Promise.all(
+      allSdcs.map(async (eachSdc) => {
+        eachSdc.creatorImage = await generateImageUrlAndFormat(
+          eachSdc.creatorImage
+        );
+        return eachSdc;
+      })
+    );
 
     // Send the request and attach all SDCs
     sendRequest({
@@ -46,12 +59,19 @@ manageSdc.getAnSdc = async function (req, res, next) {
     console.log(req.params);
 
     // Retrieve the SDC
-    const retrievedSdc = await SecondDegreeCreator.getSdcByID(sdcID);
+    const retrievedSdc = (
+      await SecondDegreeCreator.getSdcByID(sdcID)
+    )?.toObject();
 
     // If SDC not found
     if (!retrievedSdc) {
       return next(getErrorObj("No SDCs found with the provided ID"));
     }
+
+    // Get signedUrl and format the image
+    retrievedSdc.creatorImage = await generateImageUrlAndFormat(
+      retrievedSdc.creatorImage
+    );
 
     // Send the request and attach the SDC
     sendRequest({
@@ -78,7 +98,8 @@ manageSdc.addAnSdc = async function (req, res, next) {
     const passedInSdcInfo = flattenObject(body); // Flattening the passed in SDC data
     const sdcKeys = SecondDegreeCreator.getKeys(); // Retrieving keys from the SDC model
     const providedKeys = Object.keys(passedInSdcInfo); // From the passed in SDC info
-    if (!structureChecker(sdcKeys, providedKeys)) {
+    const optionalFields = ["creatorImage"];
+    if (!structureChecker(sdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
           `SDC information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${sdcKeys.join(
@@ -87,6 +108,11 @@ manageSdc.addAnSdc = async function (req, res, next) {
           400
         )
       );
+    }
+
+    // If no images provided, we use the default user image
+    if (!passedInSdcInfo.creatorImage) {
+      passedInSdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
     }
 
     // After validation of the structure
@@ -164,7 +190,7 @@ manageSdc.updateAnSdc = async function (req, res, next) {
 
 // This function Deletes an SDC
 manageSdc.deleteAnSdcAndTheirContent = async function (req, res, next) {
-     // Start the session
+  // Start the session
   const session = await mongoose.startSession();
 
   try {
@@ -207,7 +233,7 @@ manageSdc.deleteAnSdcAndTheirContent = async function (req, res, next) {
   } finally {
     session.endSession();
   }
-} 
+};
 
 // Export the module
 module.exports = manageSdc;

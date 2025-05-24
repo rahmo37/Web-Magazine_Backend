@@ -13,7 +13,10 @@ const FirstDegreeCreatorSchema = new Schema(
     fdcID: { type: String, required: true, unique: true },
     creatorName: { type: String, required: true },
     creatorBio: { type: String, default: "" },
-    creatorImage: { type: String, default: "" },
+    creatorImage: {
+      type: String,
+      default: () => process.env.DEFAULT_USER_FILENAME,
+    },
     uploaderEmployeeID: { type: String, required: true },
   },
   { timestamps: true, collection: "firstDegreeCreator" }
@@ -48,6 +51,7 @@ FirstDegreeCreatorSchema.statics.getKeys = function () {
     "__v",
     "createdAt",
     "updatedAt",
+    "creatorImage",
     "uploaderEmployeeID",
   ];
   const allowedKeys = Object.keys(this.schema.paths)

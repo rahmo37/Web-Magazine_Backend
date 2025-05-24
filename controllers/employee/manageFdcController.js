@@ -9,6 +9,7 @@ const flattenObject = require("../../helpers/flattenObject");
 const { default: mongoose } = require("mongoose");
 const { generateID } = require("../../helpers/generateID");
 const { manualMaintenance } = require("../../helpers/scheduledTasks");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
 
 // Module Scaffolding
 const manageFdc = {};
@@ -17,12 +18,24 @@ const manageFdc = {};
 manageFdc.getAllFdc = async function (req, res, next) {
   try {
     // Make a request to get all the current FDCs
-    const allFdcs = await FirstDegreeCreator.getAllFDCs();
+    let allFdcs = (await FirstDegreeCreator.getAllFDCs()).map((eachFdc) =>
+      eachFdc.toObject()
+    );
 
     // If no FDCs found
     if (!allFdcs) {
       return next(getErrorObj("No FDCs found in the repository!"));
     }
+
+    // Generate signedUrl and format
+    allFdcs = await Promise.all(
+      allFdcs.map(async (eachFdc) => {
+        eachFdc.creatorImage = await generateImageUrlAndFormat(
+          eachFdc.creatorImage
+        );
+        return eachFdc;
+      })
+    );
 
     // Send the request and attach all FDCs
     sendRequest({
@@ -45,12 +58,19 @@ manageFdc.getAnFdc = async function (req, res, next) {
     console.log(req.params);
 
     // Retrieve the FDC
-    const retrievedFdc = await FirstDegreeCreator.getFdcByID(fdcID);
+    const retrievedFdc = (
+      await FirstDegreeCreator.getFdcByID(fdcID)
+    )?.toObject();
 
     // If FDC not found
     if (!retrievedFdc) {
       return next(getErrorObj("No FDCs found with the provided ID"));
     }
+
+    // Get signedUrl and format the image
+    retrievedFdc.creatorImage = await generateImageUrlAndFormat(
+      retrievedFdc.creatorImage
+    );
 
     // Send the request and attach the FDC
     sendRequest({
@@ -77,7 +97,8 @@ manageFdc.addAnFdc = async function (req, res, next) {
     const passedInFdcInfo = flattenObject(body); // Flattening the passed in FDC data
     const fdcKeys = FirstDegreeCreator.getKeys(); // Retrieving keys from the FDC model
     const providedKeys = Object.keys(passedInFdcInfo); // From the passed in FDC info
-    if (!structureChecker(fdcKeys, providedKeys)) {
+    const optionalFields = ["creatorImage"];
+    if (!structureChecker(fdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
           `FDC information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${fdcKeys.join(
@@ -86,6 +107,11 @@ manageFdc.addAnFdc = async function (req, res, next) {
           400
         )
       );
+    }
+
+    // If no images provided, we use the default user image
+    if (!passedInFdcInfo.creatorImage) {
+      passedInFdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
     }
 
     // After validation of the structure

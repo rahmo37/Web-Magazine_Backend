@@ -18,13 +18,26 @@ const manageEmployee = {};
 manageEmployee.getAllEmployees = async (req, res, next) => {
   try {
     // Retrieving all the employees
-    const allEmployees = await Employee.getAllEmployees();
+    let allEmployees = (await Employee.getAllEmployees()).map((eachEmp) =>
+      eachEmp.toObject()
+    );
 
     if (!allEmployees || allEmployees.length === 0) {
       return next(
         getErrorObj(`Unable to retrieve employees, or no employees exist`, 404)
       );
     }
+
+    // Generate signedUrl and format
+    allEmployees = await Promise.all(
+      allEmployees.map(async (eachEmp) => {
+        eachEmp.employeePreferences.profilePicture =
+          await generateImageUrlAndFormat(
+            eachEmp.employeePreferences.profilePicture
+          );
+        return eachEmp;
+      })
+    );
 
     // Send the employee data
     sendRequest({
@@ -53,7 +66,6 @@ manageEmployee.getAnEmployee = async (req, res, next) => {
 
     // Retrieve the employee
     const employee = (await Employee.getEmployeeByID(ID))?.toObject();
-
 
     // If no employee found
     if (!employee) {
