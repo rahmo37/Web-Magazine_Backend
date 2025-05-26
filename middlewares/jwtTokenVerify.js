@@ -23,14 +23,14 @@ const authenticateToken = (req, res, next) => {
     const err = new Error(
       "Missing token!! Please obtain an authorization token before proceeding"
     );
-    err.status = 403;
+    err.status = 401;
     return next(err);
   }
 
   // Verify the token
   jwt.verify(token, jwtConfig.secret, (err, user) => {
     if (err) {
-      err.status = 403;
+      err.status = 401;
       err.message = "Invalid token and signature";
       return next(err);
     }

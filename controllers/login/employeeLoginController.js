@@ -98,7 +98,10 @@ async function login(req, res, next) {
     const employeeData = employee.toObject();
 
     // Convert the profile picture to have the filename and the image URL
-    employeeData.employeePreferences.profilePicture = await generateImageUrlAndFormat(employeeData.employeePreferences.profilePicture);
+    employeeData.employeePreferences.profilePicture =
+      await generateImageUrlAndFormat(
+        employeeData.employeePreferences.profilePicture
+      );
 
     // Delete the password when sending
     delete employeeData.password;
@@ -117,7 +120,7 @@ async function login(req, res, next) {
       statusCode: 200,
       message: "User is validated!",
       data: employeeData,
-      token,
+      ...(process.env.NODE_ENV === "development" && { token }),
     });
   } catch (error) {
     next(error);

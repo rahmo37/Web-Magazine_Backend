@@ -28,7 +28,7 @@ module.exports = async (err, req, res, next) => {
   }
 
   // — standard handler for all other errors —
-  console.error(err);
+  console.error(err.message);
   return res.status(err.status || 500).json({
     error: {
       message:

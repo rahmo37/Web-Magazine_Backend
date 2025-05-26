@@ -49,6 +49,9 @@ const {
   manageLinkRouter,
 } = require("./routes/employee/content/manageLinkRouter");
 
+// Other Imports
+const { sendRequest } = require("./helpers/sendRequest");
+
 // ? Test Image Upload Imports
 const {
   uploadBatchedImages,
@@ -125,6 +128,16 @@ app.post(
 );
 
 // Employee Routes
+
+// Check JWT token validity
+app.use("/api/auth/check", authenticateToken, (req, res) => {
+  return sendRequest({
+    res,
+    statusCode: 200,
+    message: "Token is valid",
+    data: req.user,
+  });
+});
 
 // Login route
 // Rate-Limiter for login in production

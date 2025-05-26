@@ -96,7 +96,8 @@ manageEmployee.addEmployee = async (req, res, next) => {
     const passedInEmployeeInfo = flattenObject(req.body);
     const employeeKeys = Employee.getKeys();
     const providedKeys = Object.keys(passedInEmployeeInfo);
-    if (!structureChecker(employeeKeys, providedKeys)) {
+    const optionalFields = ["profilePicture"];
+    if (!structureChecker(employeeKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
           `Employee information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${employeeKeys.join(
@@ -105,6 +106,11 @@ manageEmployee.addEmployee = async (req, res, next) => {
           400
         )
       );
+    }
+
+    // Attach default user image if not provided
+    if (!passedInEmployeeInfo.profilePicture) {
+      passedInEmployeeInfo.profilePicture = process.env.DEFAULT_USER_FILENAME;
     }
 
     // Destructuring values

@@ -40,7 +40,10 @@ const EmployeeSchema = new Schema(
       dateOfBirth: { type: Date, required: true },
     },
     employeePreferences: {
-      profilePicture: { type: String, required: true },
+      profilePicture: {
+        type: String,
+        default: () => process.env.DEFAULT_USER_FILENAME,
+      },
       themeColor: { type: String, default: null },
     },
   },
@@ -58,6 +61,7 @@ EmployeeSchema.statics.getKeys = function () {
     "updatedAt",
     "temporaryApproval",
     "lastLogin",
+    "profilePicture",
     "themeColor",
     "accountCreated",
     "isActiveAccount",
