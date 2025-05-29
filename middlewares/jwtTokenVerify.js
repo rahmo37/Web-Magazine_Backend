@@ -7,7 +7,6 @@ const jwtConfig = require("../config/jwtConfig");
 // Middleware function that checks for JWT from cookies first, then headers
 const authenticateToken = (req, res, next) => {
   let token;
-
   // Priority 1: Check for token in cookies
   if (req.cookies && req.cookies.token) {
     token = req.cookies.token;

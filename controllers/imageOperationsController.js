@@ -1,10 +1,11 @@
 // This file handles image uploads, using Multer to extract the images from the request
 const multer = require("multer");
 const UploadTracker = require("../models/UploadTracker");
-const { uploadAnImage } = require("../helpers/AWS");
 const rollbackOnUploadFailure = require("../helpers/rollbackOnUploadFailure");
 const { getErrorObj } = require("../helpers/getErrorObj");
 const { sendRequest } = require("../helpers/sendRequest");
+const findModule = require("../helpers/findModulePath");
+const assignJob = require("../helpers/assignJob");
 
 // Module scaffolding
 const imageOperations = {};
@@ -48,8 +49,10 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
     }
 
     // Upload all files (in parallel)
-    const fileNamesInCurrentBatch = await Promise.all(
-      req.files.map(uploadAnImage)
+    const fileNamesInCurrentBatch = await assignJob(
+      findModule("AWS.js"),
+      "uploadMany",
+      [req.files]
     );
 
     // Updated the tracker

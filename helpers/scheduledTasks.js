@@ -1,15 +1,11 @@
 // scheduler.js
 const cron = require("node-cron");
-const Employee = require("../models/Employee");
-const FirstDegreeCreator = require("../models/FirstDegreeCreator");
-const SecondDegreeCreator = require("../models/SecondDegreeCreator");
-const { hashPasswordInDatabase } = require("./hashPassword");
-const { trimCreator } = require("./trimOrphanedCreators");
-const { trimContents } = require("./trimOrphanedContents");
 const { dateAndTime } = require("../helpers/dateAndTime");
+const findModule = require("./findModulePath");
+const assignJob = require("./assignJob");
 
 // Cron expression: every day at 12:00 PM New York time
-const timeExpression = "0 12 * * *";
+const timeExpression = "20 12 * * *";
 
 // Validate the expression
 if (!cron.validate(timeExpression)) {
@@ -24,7 +20,18 @@ scheduler.dbMaintenance = cron.schedule(
   timeExpression,
   async () => {
     console.log("🔄 Running scheduled maintenance:", new Date());
-    await allMaintenanceFunctions();
+
+    // Assigning Worker thread for maintenance
+    assignJob(findModule("maintenanceFunctions.js"))
+      .then(() => {
+        console.log(
+          "Maintenance completed at",
+          dateAndTime.getLocalFormatted()
+        );
+      })
+      .catch((err) => {
+        console.log(err);
+      });
   },
   {
     scheduled: false,
@@ -32,44 +39,20 @@ scheduler.dbMaintenance = cron.schedule(
   }
 );
 
-// Orchestrator with per‑step try/catch
-async function allMaintenanceFunctions() {
-  // 1) Hash any unhashed passwords
-  try {
-    await hashPasswordInDatabase([Employee]);
-  } catch (err) {
-    console.error("⚠️ Error during password hashing:", err);
-  }
-
-  // 2) Trim orphaned first‑degree creators
-  try {
-    await trimCreator(FirstDegreeCreator);
-  } catch (err) {
-    console.error("⚠️ Error trimming FirstDegreeCreator:", err);
-  }
-
-  // 3) Trim orphaned second‑degree creators
-  try {
-    await trimCreator(SecondDegreeCreator);
-  } catch (err) {
-    console.error("⚠️ Error trimming SecondDegreeCreator:", err);
-  }
-
-  // 4) Trim orphaned contents
-  try {
-    await trimContents();
-  } catch (err) {
-    console.error("⚠️ Error in trimContents:", err);
-  }
-}
-
+// This function does manual maintenance
 scheduler.manualMaintenance = async function () {
-  await allMaintenanceFunctions();
-  console.log(
-    "🚀 Initial maintenance completed at",
-    dateAndTime.getLocalFormatted()
-  );
+  assignJob(findModule("maintenanceFunctions.js"))
+    .then(() => {
+      console.log(
+        "🚀 Initial maintenance completed at",
+        dateAndTime.getLocalFormatted()
+      );
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 };
+
 // Immediately run one maintenance upon server start up
 // scheduler.manualMaintenance();
 

@@ -44,7 +44,10 @@ const EmployeeSchema = new Schema(
         type: String,
         default: () => process.env.DEFAULT_USER_FILENAME,
       },
-      themeColor: { type: String, default: null },
+      themeColor: {
+        type: String,
+        default: () => process.env.DEFAULT_THEME_COLOR,
+      },
     },
   },
   { timestamps: true, collection: "employee" }

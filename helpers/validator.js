@@ -628,6 +628,27 @@ validator.creatorImage = validateImageString;
 //! --------------------articleCover
 validator.articleCover = validateImageString;
 
+//! --------------------profilePicture
+validator.profilePicture = validateImageString;
+
+//! --------------------themeColor
+validator.themeColor = function (color) {
+  const errors = [];
+
+  // Current theme colors
+  const currentColors = process.env.THEME_COLORS.split(",");
+
+  // If current colors does not have the color passed-in
+  if (!currentColors.includes(color.toUpperCase())) {
+    errors.push("The color value provided is not acceptable");
+  }
+
+  return {
+    valid: errors.length === 0,
+    error: numberErrors(errors),
+  };
+};
+
 //! --------------------originalWritingDate
 /**
  * Validates the "originalWritingDate" value:

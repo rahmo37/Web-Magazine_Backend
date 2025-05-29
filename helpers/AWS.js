@@ -5,7 +5,7 @@ const {
   S3Client,
   PutObjectCommand,
   DeleteObjectsCommand,
-  GetObjectCommand
+  GetObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
@@ -33,6 +33,13 @@ AwsFunctions.uploadAnImage = async function (file) {
   };
   await s3.send(new PutObjectCommand(params));
   return fileName;
+};
+
+AwsFunctions.uploadMany = async function (fileNames) {
+  const uploadedNames = await Promise.all(
+    fileNames.map(AwsFunctions.uploadAnImage)
+  );
+  return uploadedNames;
 };
 
 // A filenames Array will be provided and corresponding files will be delete in s3

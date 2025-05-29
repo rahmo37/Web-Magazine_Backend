@@ -12,7 +12,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
-const bodyParse = require("body-parser");
+const bodyParser = require("body-parser");
 const parseImageMeta = require("./middlewares/parseImageMeta");
 const requestInfo = require("./middlewares/logRequestInformation");
 const dbConfig = require("./config/db");
@@ -81,6 +81,8 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:5500",
   "http://127.0.0.1:5501",
+  "http://localhost:5500",
+  "http://localhost:5501",
   "http://localhost:8000",
   "http://localhost:5172",
   "http://localhost:5173",
@@ -104,7 +106,7 @@ app.use(
 app.use(requestInfo);
 
 // Data parsing middleware
-app.use(bodyParse.json({ limit: "50mb" }));
+app.use(bodyParser.json({ limit: "50mb" }));
 
 // Mongodb query sanitize
 app.use(mongoSanitize());
@@ -116,16 +118,6 @@ app.use(xss());
 app.use(cookieParser());
 
 // ---------------------------------End-points---------------------------------
-// ? Image Upload Test
-app.post(
-  "/api/upload",
-  multerImageInjection,
-  parseImageMeta,
-  uploadBatchedImages,
-  (req, res, next) => {
-    res.status(200).json({ message: "Upload Done" });
-  }
-);
 
 // Employee Routes
 
@@ -151,6 +143,17 @@ app.use(
 
 //* Only employees are allowed beyond this point and Requests must have JWT token
 app.use(authenticateToken, roleVerify.isEmployee);
+
+// ? Image Upload Test
+app.post(
+  "/api/upload",
+  multerImageInjection,
+  parseImageMeta,
+  uploadBatchedImages,
+  (req, res, next) => {
+    res.status(200).json({ message: "Upload Done" });
+  }
+);
 
 // Employee Management Route
 app.use("/api/manage/employee", manageEmployeeRouter);

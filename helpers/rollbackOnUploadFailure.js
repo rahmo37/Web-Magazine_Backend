@@ -4,6 +4,8 @@
 const { deleteMany } = require("./AWS");
 const UploadTracker = require("../models/UploadTracker");
 const { getErrorObj } = require("./getErrorObj");
+const findModule = require("./findModulePath");
+const assignJob = require("./assignJob");
 const genericMessage = "rollback failed";
 
 module.exports = async function rollbackOnUploadFailure(
@@ -37,7 +39,8 @@ module.exports = async function rollbackOnUploadFailure(
 
   // Rollback operations wrapped in try-catch
   try {
-    const s3DeleteResult = await deleteMany(fileNames);
+    //  Using worker thread to delete
+    const s3DeleteResult = await assignJob(findModule("AWS.js"), "deleteMany", [fileNames]);
     const dbDeleteResult = await UploadTracker.deleteByUpID(upID);
 
     return `${s3DeleteResult} file(s) deleted from S3 and ${
