@@ -10,6 +10,7 @@ const { getErrorObj } = require("../helpers/getErrorObj");
 // First Degree Creator Schema
 const FirstDegreeCreatorSchema = new Schema(
   {
+    upID: { type: String, required: true, unique: true },
     fdcID: { type: String, required: true, unique: true },
     creatorName: { type: String, required: true },
     creatorBio: { type: String, default: "" },
@@ -47,6 +48,7 @@ FirstDegreeCreatorSchema.statics.getKeys = function () {
   // Excluded fields
   const exclude = [
     "fdcID",
+    "upID",
     "_id",
     "__v",
     "createdAt",
@@ -78,10 +80,21 @@ FirstDegreeCreatorSchema.statics.updateAnFdc = async function (fdcID, fdcData) {
 
 // Delete many FDCs with fdcIDs array
 FirstDegreeCreatorSchema.statics.deleteByIDs = async function (fdcIDsArr) {
-  const result = await FirstDegreeCreator.deleteMany({
-    fdcID: { $in: fdcIDsArr },
-  });
-  return result.deletedCount;
+  // 1. Find docs to get upIDs
+  const docsToDelete = await this.find(
+    { fdcID: { $in: fdcIDsArr } },
+    { upID: 1, _id: 0 }
+  );
+  const upIDs = docsToDelete.map((doc) => doc.upID);
+
+  // 2. Delete the documents
+  const result = await this.deleteMany({ fdcID: { $in: fdcIDsArr } });
+
+  // 3. Return both deletedCount and upIDs
+  return {
+    deletedCount: result.deletedCount,
+    upIDs,
+  };
 };
 
 // Delete one FDC with ID

@@ -11,13 +11,11 @@ require("dotenv").config({ path: envFile });
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const path = require("path");
 const bodyParser = require("body-parser");
-const parseImageMeta = require("./middlewares/parseImageMeta");
+// const parseImageMeta = require("./middlewares/parseImageMeta");
 const requestInfo = require("./middlewares/logRequestInformation");
 const dbConfig = require("./config/db");
 const { dbMaintenance } = require("./helpers/scheduledTasks");
-const { hashPasswordInDatabase } = require("./helpers/hashPassword");
 const authenticateToken = require("./middlewares/jwtTokenVerify");
 const roleVerify = require("./middlewares/roleVerification");
 const cookieParser = require("cookie-parser");
@@ -53,10 +51,10 @@ const {
 const { sendRequest } = require("./helpers/sendRequest");
 
 // ? Test Image Upload Imports
-const {
-  uploadBatchedImages,
-} = require("./controllers/imageOperationsController");
-const multerImageInjection = require("./middlewares/multerImageInjection");
+// const {
+//   uploadBatchedImages,
+// } = require("./controllers/imageOperationsController");
+// const multerImageInjection = require("./middlewares/multerImageInjection");
 
 // ---------------------------------Project variables---------------------------------
 const PORT = process.env.PORT || 8000;
@@ -145,15 +143,15 @@ app.use(
 app.use(authenticateToken, roleVerify.isEmployee);
 
 // ? Image Upload Test
-app.post(
-  "/api/upload",
-  multerImageInjection,
-  parseImageMeta,
-  uploadBatchedImages,
-  (req, res, next) => {
-    res.status(200).json({ message: "Upload Done" });
-  }
-);
+// app.post(
+//   "/api/upload",
+//   multerImageInjection,
+//   parseImageMeta,
+//   uploadBatchedImages,
+//   (req, res, next) => {
+//     res.status(200).json({ message: "Upload Done" });
+//   }
+// );
 
 // Employee Management Route
 app.use("/api/manage/employee", manageEmployeeRouter);

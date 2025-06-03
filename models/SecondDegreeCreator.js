@@ -10,6 +10,7 @@ const Schema = mongoose.Schema;
 // Second Degree Creator Schema
 const SecondDegreeCreatorSchema = new Schema(
   {
+    upID: { type: String, required: true, unique: true },
     sdcID: { type: String, required: true, unique: true },
     creatorName: { type: String, required: true },
     creatorBio: { type: String, default: "" },
@@ -65,6 +66,7 @@ SecondDegreeCreatorSchema.statics.getKeys = function () {
   // Excluded fields
   const exclude = [
     "sdcID",
+    "upID",
     "_id",
     "__v",
     "createdAt",
@@ -81,10 +83,21 @@ SecondDegreeCreatorSchema.statics.getKeys = function () {
 
 // Delete many SDCs with sdcIDs array
 SecondDegreeCreatorSchema.statics.deleteByIDs = async function (sdcIDsArr) {
-  const result = await SecondDegreeCreator.deleteMany({
-    sdcID: { $in: sdcIDsArr },
-  });
-  return result.deletedCount;
+  // 1. Find docs to get upIDs
+  const docsToDelete = await this.find(
+    { sdcID: { $in: sdcIDsArr } },
+    { upID: 1, _id: 0 }
+  );
+  const upIDs = docsToDelete.map((doc) => doc.upID);
+
+  // 2. Delete the documents
+  const result = await this.deleteMany({ sdcID: { $in: sdcIDsArr } });
+
+  // 3. Return both deletedCount and upIDs
+  return {
+    deletedCount: result.deletedCount,
+    upIDs,
+  };
 };
 
 // Delete one SDC with ID

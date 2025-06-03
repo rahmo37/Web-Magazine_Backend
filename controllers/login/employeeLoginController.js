@@ -109,7 +109,7 @@ async function login(req, res, next) {
     // Send JWT as an HTTP-only cookie:
     res.cookie("token", token, {
       httpOnly: true, // Cookie inaccessible from JavaScript on client-side, preventing XSS attacks.
-      secure: true, // Only sent over HTTPS in production.
+      secure: true, // Send over HTTPs.
       sameSite: "none",
       expires: new Date(Date.now() + 3600000 * 4), // 4 hr from now
     });

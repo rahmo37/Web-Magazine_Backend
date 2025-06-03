@@ -32,6 +32,6 @@ module.exports = function parseImageMeta(req, res, next) {
     );
   }
 
-  // All good—hand off to the next step
+  // All good. hand off to the next step
   next();
 };

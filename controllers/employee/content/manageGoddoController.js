@@ -6,6 +6,7 @@ const Employee = require("../../../models/Employee");
 const Goddo = require("../../../models/Departments/Goddo");
 const FirstDegreeCreator = require("../../../models/FirstDegreeCreator");
 const SecondDegreeCreator = require("../../../models/SecondDegreeCreator");
+const UploadTracker = require("../../../models/UploadTracker");
 const { sendRequest } = require("../../../helpers/sendRequest");
 const { getErrorObj } = require("../../../helpers/getErrorObj");
 const flattenObject = require("../../../helpers/flattenObject");
@@ -14,6 +15,7 @@ const { generateID } = require("../../../helpers/generateID");
 const deepCopy = require("../../../helpers/deepCopy");
 const { dateAndTime } = require("../../../helpers/dateAndTime");
 const { default: mongoose } = require("mongoose");
+const rollbackOnUploadFailure = require("../../../helpers/rollbackOnUploadFailure");
 
 // Module Scaffolding
 const manageGoddo = {};
@@ -182,6 +184,20 @@ manageGoddo.getAGoddo = async function (req, res, next) {
 
 // Post a goddo
 manageGoddo.postAGoddo = async function (req, res, next) {
+  if (!req.tracker) {
+    return next(
+      getErrorObj(
+        "Unable to create/find the tracker. Please ensure the upID is sent with the request body",
+        400
+      )
+    );
+  }
+
+  const tracker = { ...req.tracker };
+
+  // Retrieve the files in tracker
+  const filesInTracker = new Set([...tracker.fileNames]);
+
   // Start a new session
   const session = await mongoose.startSession();
   try {
@@ -199,6 +215,8 @@ manageGoddo.postAGoddo = async function (req, res, next) {
     let newSdc = null;
     let newContent = null;
     let subcategoryID = null;
+    let newTrackerForFdc = null;
+    let newTrackerForSdc = null;
 
     // Necessary variables
     let currentDate = dateAndTime.getUtcRaw();
@@ -207,10 +225,10 @@ manageGoddo.postAGoddo = async function (req, res, next) {
     const body = { ...req.body };
 
     // If fdc or content is not found in the body
-    if (!body.fdc || !body.content) {
+    if (!body.fdc || !body.content || !body.upID) {
       return next(
         getErrorObj(
-          "First Degree Creator and the Content details are required to create a content",
+          "upID, First Degree Creator and the Content details are required to create a content",
           400
         )
       );
@@ -240,7 +258,8 @@ manageGoddo.postAGoddo = async function (req, res, next) {
       const passedInFdcInfo = flattenObject(body.fdc); // Flattening the passed in FDC data
       const fdcKeys = FirstDegreeCreator.getKeys(); // From the FDC model
       const providedKeys = Object.keys(passedInFdcInfo); // From the passed in FDC info
-      if (!structureChecker(fdcKeys, providedKeys)) {
+      const optionalFields = ["creatorImage"];
+      if (!structureChecker(fdcKeys, providedKeys, optionalFields)) {
         return next(
           getErrorObj(
             `FDC information is either missing or contains invalid keys. Please review your submission and try again. If providing just an existing ID, make sure your key is spelled 'fdcID' exactly. Else The required keys are: ${fdcKeys.join(
@@ -250,12 +269,38 @@ manageGoddo.postAGoddo = async function (req, res, next) {
           )
         );
       }
-
       // After validation of the structure
+      // Ready the newTracker for fdc
+      newTrackerForFdc = {
+        upID: generateID("up_"),
+        fileNames: [],
+      };
+
+      // Verify that if a creatorImage is provided, it must exist in the list of uploaded files (tracked files)
+      if (passedInFdcInfo.creatorImage) {
+        if (!filesInTracker.has(passedInFdcInfo.creatorImage)) {
+          return next(
+            getErrorObj(
+              `The image file name provided for the FDC creatorImage does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+              400
+            )
+          );
+        }
+
+        // Delete the file from the tracker
+        filesInTracker.delete(passedInFdcInfo.creatorImage);
+
+        // Insert the file in the FDC tracker
+        newTrackerForFdc.fileNames.push(passedInFdcInfo.creatorImage);
+      } else {
+        passedInFdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
+      }
+
       // Generate a new fdcID
       const fdcID = generateID("fdc_");
       newFdc = {
         ...passedInFdcInfo,
+        upID: newTrackerForFdc.upID,
         fdcID,
         uploaderEmployeeID: loggedInEmployeeID,
       };
@@ -288,7 +333,8 @@ manageGoddo.postAGoddo = async function (req, res, next) {
         const passedInSdcInfo = flattenObject(body.sdc);
         const sdcKeys = SecondDegreeCreator.getKeys();
         const providedKeys = Object.keys(passedInSdcInfo);
-        if (!structureChecker(sdcKeys, providedKeys)) {
+        const optionalFields = ["creatorImage"];
+        if (!structureChecker(sdcKeys, providedKeys, optionalFields)) {
           return next(
             getErrorObj(
               `SDC information is either missing or contains invalid keys. Please review your submission and try again. If providing just an existing ID, make sure your key is spelled 'sdcID' exactly. Else The required keys are: ${sdcKeys.join(
@@ -299,10 +345,37 @@ manageGoddo.postAGoddo = async function (req, res, next) {
           );
         }
 
+        // Ready the newTracker for sdc
+        newTrackerForSdc = {
+          upID: generateID("up_"),
+          fileNames: [],
+        };
+
+        // If creator image is provided
+        if (passedInSdcInfo.creatorImage) {
+          if (!filesInTracker.has(passedInSdcInfo.creatorImage)) {
+            return next(
+              getErrorObj(
+                `The image file name provided for the SDC creatorImage does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+                400
+              )
+            );
+          }
+
+          // Delete the file from the tracker
+          filesInTracker.delete(passedInSdcInfo.creatorImage);
+
+          // Push the new creator image to the fileNames array
+          newTrackerForSdc.fileNames.push(passedInSdcInfo.creatorImage);
+        } else {
+          passedInSdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
+        }
+
         // Generate a new sdcID
         const sdcID = generateID("sdc_");
         newSdc = {
           ...passedInSdcInfo,
+          upID: newTrackerForSdc.upID,
           sdcID,
           uploaderEmployeeID: loggedInEmployeeID,
         };
@@ -366,6 +439,7 @@ manageGoddo.postAGoddo = async function (req, res, next) {
       "articleTrailer",
       "aboutArticle",
       "originalWritingDate",
+      "articleCover",
       "sectionImages",
     ];
 
@@ -383,17 +457,39 @@ manageGoddo.postAGoddo = async function (req, res, next) {
     // Make deep copy of the content
     newContent = deepCopy(body.content);
 
-    // Save the subcategoryID and the delete it from the new content
+    // Save the subcategoryID and then delete it from the new content
     subcategoryID = newContent.subcategoryID;
     delete newContent.subcategoryID;
 
-    // Manually add necessary information
     // Metadata
+    newContent.metadata.upID = body.upID;
     newContent.metadata.godID = generateID("god_");
     newContent.metadata.contentAddedDate = currentDate;
 
+    // Collect all image references
+    const referencedFilesSet = new Set();
+
+    // If article cover is provided and not a placeholder
+    if (
+      newContent.article.articleCover &&
+      newContent.article.articleCover !==
+        process.env.DEFAULT_PLACEHOLDER_FILENAME
+    ) {
+      if (!filesInTracker.has(newContent.article.articleCover)) {
+        return next(
+          getErrorObj(
+            `The image file name provided for the article cover does not match any file in the upload tracker.`,
+            400
+          )
+        );
+      }
+      referencedFilesSet.add(newContent.article.articleCover);
+    } else {
+      newContent.article.articleCover =
+        process.env.DEFAULT_PLACEHOLDER_FILENAME;
+    }
+
     // Main Content
-    // Iteratively check each section and and add necessary properties
     for (const eachSec of newContent.article.mainContent) {
       // If no sectionArticle was found send an error
       if (!eachSec.sectionArticle) {
@@ -404,14 +500,39 @@ manageGoddo.postAGoddo = async function (req, res, next) {
           )
         );
       }
-      // Add the sectionImages property if does not exists already
+
       if (!eachSec.sectionImages) {
         eachSec.sectionImages = [];
+      }
+
+      for (const imageName of eachSec.sectionImages) {
+        if (!filesInTracker.has(imageName)) {
+          return next(
+            getErrorObj(
+              `One or more sections contain image file names that do not exist in the tracker file list`,
+              400
+            )
+          );
+        }
+        referencedFilesSet.add(imageName);
       }
 
       // Add the sectionID and the sectionAddedDate
       eachSec.sectionID = generateID("sec_");
       eachSec.sectionAddedDate = currentDate;
+    }
+
+    // Check for set equality
+    if (
+      referencedFilesSet.size !== filesInTracker.size ||
+      ![...referencedFilesSet].every((file) => filesInTracker.has(file))
+    ) {
+      return next(
+        getErrorObj(
+          `The number of uploaded image filenames does not match the referenced filenames. All uploaded images must be referenced, and vice versa.`,
+          400
+        )
+      );
     }
 
     // Update the new link with the new goddo id
@@ -427,17 +548,43 @@ manageGoddo.postAGoddo = async function (req, res, next) {
       // Create new FDC if not null
       if (newFdc) {
         await FirstDegreeCreator.createNewFDC(newFdc, session);
+        // Additionally create a tracker for the FDC
+        if (newTrackerForFdc.fileNames.length) {
+          await UploadTracker.createTracker(
+            newTrackerForFdc.upID,
+            newTrackerForFdc.fileNames,
+            session
+          );
+        }
       }
+
       // Create new SDC if not null
       if (newSdc) {
         await SecondDegreeCreator.createNewSDC(newSdc, session);
+        // Additionally create a tracker for the SDC
+        if (newTrackerForSdc.fileNames.length) {
+          await UploadTracker.createTracker(
+            newTrackerForSdc.upID,
+            newTrackerForSdc.fileNames,
+            session
+          );
+        }
       }
+
       // Create the content
       await Goddo.createAGoddoWithSubcategoryID(
         subcategoryID,
         newContent,
         session
       );
+
+      // Update the tracker
+      await UploadTracker.replaceFilesInTracker(
+        tracker.upID,
+        [...filesInTracker],
+        session
+      );
+
       // Create the link
       await Link.createLink(newLink, session);
     });
@@ -626,18 +773,26 @@ manageGoddo.deleteAGoddoSection = async function (req, res, next) {
     }
 
     // If secID is provided we delete the section
-    const currentMainContentArray = await Goddo.deleteAGoddoSection(
+    const sectionDeletionResult = await Goddo.deleteAGoddoSection(
       subID,
       godID,
       secID
     );
 
-    // Send the response with the updated article data
+    // Delete the section images from s3
+    const imageDeletionResult = await rollbackOnUploadFailure(
+      sectionDeletionResult.upID,
+      sectionDeletionResult.deletedSection.sectionImages,
+      false
+    );
+    console.log(imageDeletionResult);
+
+    // Send the response with the deleted section data
     sendRequest({
       res,
       statusCode: 200,
       message: "Deleted section successfully",
-      data: currentMainContentArray,
+      data: sectionDeletionResult.deletedSection,
     });
   } catch (error) {
     next(error);
@@ -646,7 +801,7 @@ manageGoddo.deleteAGoddoSection = async function (req, res, next) {
 
 // Delete a goddo
 manageGoddo.deleteAGoddo = async function (req, res, next) {
-  let isDeletedGoddo = false;
+  let deletedGoddo = {};
   let isDeletedLink = false;
 
   // Start a new session
@@ -657,13 +812,16 @@ manageGoddo.deleteAGoddo = async function (req, res, next) {
 
     await session.withTransaction(async () => {
       // Now we delete the goddo as part of a session
-      isDeletedGoddo = await Goddo.deleteAGoddoByID(subID, godID, session);
+      deletedGoddo = await Goddo.deleteAGoddoByID(subID, godID, session);
 
       // Now we delete the link as part of a session
       isDeletedLink = await Link.deleteByContentID(godID, session);
     });
 
-    if (isDeletedGoddo && isDeletedLink) {
+    if (deletedGoddo && isDeletedLink) {
+      const result = await rollbackOnUploadFailure(deletedGoddo.metadata.upID);
+      console.log(result);
+
       // Send the response with the updated article data
       sendRequest({
         res,

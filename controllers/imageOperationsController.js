@@ -1,5 +1,4 @@
 // This file handles image uploads, using Multer to extract the images from the request
-const multer = require("multer");
 const UploadTracker = require("../models/UploadTracker");
 const rollbackOnUploadFailure = require("../helpers/rollbackOnUploadFailure");
 const { getErrorObj } = require("../helpers/getErrorObj");
@@ -14,6 +13,22 @@ const imageOperations = {};
 imageOperations.uploadBatchedImages = async function (req, res, next) {
   // If no files found we assume no images uploaded
   if (!req.files || req.files.length === 0) {
+    // If an upID is found in the request, we try to retrieve the existing tracker. If no tracker is found, we create a new one and attach it to the req object.
+    if (req.body.upID) {
+      // Save the upID
+      let upID = req.body.upID;
+
+      // Retrieve the existing tracker
+      let tracker = (await UploadTracker.getTracker(upID))?.toObject();
+
+      // If no tracker, we create a new one
+      if (!tracker) {
+        tracker = (await UploadTracker.createTracker(upID))?.toObject();
+      }
+
+      // Finally we attach the tracker to the req object
+      req.tracker = tracker;
+    }
     return next();
   }
 
@@ -39,9 +54,9 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
       return next(getErrorObj(msg, 400));
     }
 
-    if (imageMetadata.batchNumber === 5) {
-      throw getErrorObj("testing rollback");
-    }
+    // if (imageMetadata.batchNumber === 2) {
+    //   throw getErrorObj("testing rollback");
+    // }
 
     // If no tracker then we create one
     if (!tracker) {
@@ -68,10 +83,7 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
   } catch (error) {
     try {
       if (tracker) {
-        const result = await rollbackOnUploadFailure(
-          tracker.upID,
-          tracker.fileNames
-        );
+        const result = await rollbackOnUploadFailure(tracker.upID);
         console.log(result);
       } else {
         console.log("No tracker found. Nothing to rollback.");

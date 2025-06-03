@@ -97,7 +97,7 @@ manageFdc.addAnFdc = async function (req, res, next) {
     const passedInFdcInfo = flattenObject(body); // Flattening the passed in FDC data
     const fdcKeys = FirstDegreeCreator.getKeys(); // Retrieving keys from the FDC model
     const providedKeys = Object.keys(passedInFdcInfo); // From the passed in FDC info
-    const optionalFields = ["creatorImage"];
+    const optionalFields = ["creatorImage", "upID"];
     if (!structureChecker(fdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(

@@ -98,7 +98,7 @@ manageSdc.addAnSdc = async function (req, res, next) {
     const passedInSdcInfo = flattenObject(body); // Flattening the passed in SDC data
     const sdcKeys = SecondDegreeCreator.getKeys(); // Retrieving keys from the SDC model
     const providedKeys = Object.keys(passedInSdcInfo); // From the passed in SDC info
-    const optionalFields = ["creatorImage"];
+    const optionalFields = ["creatorImage", "upID"];
     if (!structureChecker(sdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(

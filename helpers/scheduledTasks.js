@@ -5,7 +5,7 @@ const findModule = require("./findModulePath");
 const assignJob = require("./assignJob");
 
 // Cron expression: every day at 12:00 PM New York time
-const timeExpression = "20 12 * * *";
+const timeExpression = "0 12 * * *";
 
 // Validate the expression
 if (!cron.validate(timeExpression)) {
@@ -19,7 +19,10 @@ const scheduler = {};
 scheduler.dbMaintenance = cron.schedule(
   timeExpression,
   async () => {
-    console.log("🔄 Running scheduled maintenance:", new Date());
+    console.log(
+      "🔄 Running scheduled maintenance:",
+      dateAndTime.getLocalFormatted()
+    );
 
     // Assigning Worker thread for maintenance
     assignJob(findModule("maintenanceFunctions.js"))
@@ -54,7 +57,7 @@ scheduler.manualMaintenance = async function () {
 };
 
 // Immediately run one maintenance upon server start up
-// scheduler.manualMaintenance();
+scheduler.manualMaintenance();
 
 // Gracefully stop cron on exit
 process.on("SIGINT", () => {

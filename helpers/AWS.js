@@ -45,14 +45,21 @@ AwsFunctions.uploadMany = async function (fileNames) {
 // A filenames Array will be provided and corresponding files will be delete in s3
 // Delete an array of keys from S3 and confirm the outcome
 AwsFunctions.deleteMany = async function deleteMany(fileNames = []) {
-  // Nothing to do
-  if (!fileNames.length) {
+  if (!Array.isArray(fileNames) || fileNames.length === 0) {
     return { deleted: 0, message: "No files supplied" };
   }
 
+  // Filter out the default user filename if provided
+  const filteredFileNames = fileNames.filter(
+    (key) => key !== process.env.DEFAULT_USER_FILENAME && key !== process.env.DEFAULT_PLACEHOLDER_FILENAME
+  );
+
+  // Parameters to send
   const params = {
     Bucket: BUCKET_NAME,
-    Delete: { Objects: fileNames.map((Key) => ({ Key })) },
+    Delete: {
+      Objects: filteredFileNames.map((Key) => ({ Key })),
+    },
   };
 
   const result = await s3.send(new DeleteObjectsCommand(params));

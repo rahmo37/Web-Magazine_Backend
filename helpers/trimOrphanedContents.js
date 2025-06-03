@@ -3,6 +3,7 @@ const Goddo = require("../models/Departments/Goddo");
 const Shongit = require("../models/Departments/Shongit");
 const Link = require("../models/Link");
 const structureChecker = require("./structureChecker");
+const rollbackOnUploadFailure = require("./rollbackOnUploadFailure");
 
 // Module Scaffolding
 const orphanedContent = {};
@@ -10,7 +11,7 @@ const orphanedContent = {};
 // This function trims the orphaned contents
 orphanedContent.trimContents = async function () {
   await trimmer(Goddo, "god_");
-  await trimmer(Shongit, "gan_");
+  // await trimmer(Shongit, "gan_");
 };
 
 // Helper function that performs the trimming
@@ -28,9 +29,16 @@ async function trimmer(entity, IDPrefix) {
       const extraIDsArr = currentEntityIDs.filter((ID) => !entityIDSet.has(ID));
 
       if (extraIDsArr.length > 0) {
-        const deleteCount = await entity.deleteByIDs(extraIDsArr);
+        const deleteResult = await entity.deleteByIDs(extraIDsArr);
+
+        // Delete images for each entity
+        for (let eachID of deleteResult.upIDs) {
+          const imageDeletionResult = await rollbackOnUploadFailure(eachID);
+          console.log(imageDeletionResult);
+        }
+
         console.log(`Orphaned ${entity.modelName}(s) deleted`, {
-          deleteCount,
+          deletedCount: deleteResult.deletedCount,
           extraIDsArr,
         });
       } else {
