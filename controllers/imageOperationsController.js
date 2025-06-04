@@ -21,6 +21,13 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
       // Retrieve the existing tracker
       let tracker = (await UploadTracker.getTracker(upID))?.toObject();
 
+      // If a tracker is found however the method is post send an error
+      if (tracker && req.method === "POST") {
+        return next(
+          getErrorObj("A tracker with the provided upID already exists.", 400)
+        );
+      }
+
       // If no tracker, we create a new one
       if (!tracker) {
         tracker = (await UploadTracker.createTracker(upID))?.toObject();
@@ -32,6 +39,7 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
     return next();
   }
 
+  // From here we Are sure that request body has images
   //  If no metadata provided
   if (!req.body.meta) {
     return next(getErrorObj("No image metadata provided", 400));

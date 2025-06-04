@@ -11,6 +11,11 @@ const {
 } = require("../../middlewares/verifyEmployeeAccessOnCreators");
 const roleVerify = require("../../middlewares/roleVerification");
 const getRegexForID = require("../../helpers/getRegexForID");
+const parseImageMeta = require("../../middlewares/parseImageMeta");
+const multerImageInjection = require("../../middlewares/multerImageInjection");
+const {
+  uploadBatchedImages,
+} = require("../../controllers/imageOperationsController");
 
 // Controller files for the path "/"
 manageSdcRouter
@@ -22,10 +27,17 @@ manageSdcRouter
   .post(
     // Check for root admin
     roleVerify.isRootAdmin,
+    // If any images in the request, multer injects them in the req.files
+    multerImageInjection,
+    // parse the metadata of the images,
+    parseImageMeta,
+    // Verify the request body
     // Verify the request body
     verifyReqBody,
     // Validate the posted fields
     validationHandler(),
+    // Upload the images in batch
+    uploadBatchedImages,
     // Add an Sdc
     manageSdcController.addAnSdc
   );

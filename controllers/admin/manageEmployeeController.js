@@ -93,6 +93,21 @@ manageEmployee.getAnEmployee = async (req, res, next) => {
 // Add an employee
 manageEmployee.addEmployee = async (req, res, next) => {
   try {
+    if (!req.tracker) {
+      return next(
+        getErrorObj(
+          "Unable to create/find the tracker. Please ensure the upID is sent with the request body",
+          400
+        )
+      );
+    }
+
+    // The tracker instance for this FDC
+    const tracker = { ...req.tracker };
+
+    // Retrieve the files in tracker
+    const filesInTracker = new Set([...tracker.fileNames]);
+
     const passedInEmployeeInfo = flattenObject(req.body);
     const employeeKeys = Employee.getKeys();
     const providedKeys = Object.keys(passedInEmployeeInfo);
@@ -108,13 +123,49 @@ manageEmployee.addEmployee = async (req, res, next) => {
       );
     }
 
-    // Attach default user image if not provided
-    if (!passedInEmployeeInfo.profilePicture) {
+    // After validation of the structure
+    //  Process image uploads
+    if (
+      passedInEmployeeInfo.profilePicture &&
+      passedInEmployeeInfo.profilePicture !== process.env.DEFAULT_USER_FILENAME
+    ) {
+      // If the profilePicture is not in the fileTracker
+      if (!filesInTracker.has(passedInEmployeeInfo.profilePicture)) {
+        return next(
+          getErrorObj(
+            `The image file name provided for the Employee ProfilePicture does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+            400
+          )
+        );
+      }
+
+      // If there are multiple or zero images in the tracker
+      if (filesInTracker.size !== 1) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: When creating an Employee, the server expects exactly one image to be uploaded for the ProfilePicture. However, found ${filesInTracker.size} image(s) in the tracker. Please ensure that one and only one image is provided for a successful Employee creation.`,
+            400
+          )
+        );
+      }
+    } else {
+      // If files detected in tracker, even if there was no Profile Picture
+      if (filesInTracker.size !== 0) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: No profile picture was provided, however fileTracker contains image(s)`,
+            400
+          )
+        );
+      }
+
+      // If no images provided, we use the default user image
       passedInEmployeeInfo.profilePicture = process.env.DEFAULT_USER_FILENAME;
     }
 
     // Destructuring values
     let {
+      upID,
       email,
       phone,
       password,
@@ -169,6 +220,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
 
     // Creating new employee with values
     const newEmployeeObject = {
+      upID,
       email: email.toLowerCase(),
       phone,
       password: await getHashedPassword(password),
@@ -212,7 +264,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
     console.error(error.message);
 
     // Send a generic error to the client
-    next(getErrorObj());
+    return next(getErrorObj());
   }
 };
 

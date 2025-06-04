@@ -594,6 +594,32 @@ validator.sdcID = checkID("sdc_", 12, "Invalid sdcID provided");
 //! --------------------employeeID
 validator.employeeID = checkID("emp_", 6, "Invalid employeeID provided");
 
+//! --------------------upID
+validator.upID = checkID(
+  "up_",
+  12,
+  "Invalid upID provided. example: up_123456789321"
+);
+
+//! --------------------batchNumber
+validator.batchNumber = function checkValidBatchNo(number) {
+  const errors = [];
+  if (isNaN(number)) {
+    errors.push("The value of the batch number must be a number");
+  }
+
+  if (number < 1 || number > 10) {
+    errors.push(
+      "The batch number cannot be less then 1 and cannot be more than 10"
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    error: numberErrors(errors),
+  };
+};
+
 // Min-Max boundary for each field
 const bioOpts = { min: 50, max: 2000 };
 const nameOpts = { min: 5, max: 300 };

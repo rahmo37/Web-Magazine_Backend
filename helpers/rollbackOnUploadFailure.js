@@ -77,20 +77,15 @@ module.exports = async function rollbackOnUploadFailure(
     }
   }
 
-  // ----------------- Edge Case: No Files -----------------
-  if (fileNames.length === 0) {
-    return "No files found to rollback.";
-  }
-
   // --------------- Main Rollback Operations ---------------
   try {
-    // 1. Delete files from S3 using a worker thread for efficiency
+    // Delete files from S3 using a worker thread for efficiency
     const s3DeleteResult = await assignJob(findModule("AWS.js"), "deleteMany", [
       fileNames,
     ]);
 
     if (isDeleteTracker) {
-      // 2A. Delete the full tracker and report how many files were tracked
+      // Delete the full tracker and report how many files were tracked
       const dbDeleteResult = await UploadTracker.deleteTrackerByUpID(upID);
 
       if (dbDeleteResult) {
@@ -100,7 +95,7 @@ module.exports = async function rollbackOnUploadFailure(
           "However, failed to delete tracker and its files from DB. Immediate follow-up required!";
       }
     } else {
-      // 2B. Remove only specific files from the tracker
+      // Remove only specific files from the tracker
       const deletedCount = await UploadTracker.removeFilesFromTracker(
         upID,
         fileNames
@@ -109,7 +104,9 @@ module.exports = async function rollbackOnUploadFailure(
     }
 
     // Return a summary of what happened
-    return `${String(s3DeleteResult)} file(s) deleted from S3 ${message} NOTE: If default user or placeholder file name is provided. They will not be deleted from s3.`;
+    return `${String(
+      s3DeleteResult
+    )} file(s) deleted from S3 ${message} NOTE: If default user or placeholder file name is provided. They will not be deleted from s3.`;
   } catch (error) {
     // Catch any unexpected errors and wrap in custom error object
     throw getErrorObj(`Rollback operation failed: ${error.message}`, 500);

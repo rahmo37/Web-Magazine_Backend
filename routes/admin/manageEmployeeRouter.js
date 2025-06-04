@@ -8,10 +8,14 @@ const manageEmployeeController = require("../../controllers/admin/manageEmployee
 const roleVerify = require("../../middlewares/roleVerification");
 const verifyReqBody = require("../../middlewares/verifyReqBody");
 const temporaryEndpointDisable = require("../../middlewares/temporaryEndpointDisable");
+const parseImageMeta = require("../../middlewares/parseImageMeta");
+const multerImageInjection = require("../../middlewares/multerImageInjection");
+const {
+  uploadBatchedImages,
+} = require("../../controllers/imageOperationsController");
 
-
-  // Get all employees
- manageEmployeeRouter.get("/", manageEmployeeController.getAllEmployees)
+// Get all employees
+manageEmployeeRouter.get("/", manageEmployeeController.getAllEmployees);
 
 // Only Root Admins are allowed
 manageEmployeeRouter.use(roleVerify.isRootAdmin);
@@ -21,11 +25,19 @@ manageEmployeeRouter
   .route("/")
   // Create an employee
   .post(
+    // If any images in the request, multer injects them in the req.files
+    multerImageInjection,
+    // parse the metadata of the images,
+    parseImageMeta,
+    // Verify the request body
     verifyReqBody,
+    // Validate the posted fields
     validationHandler(),
+    // Upload the images in batch
+    uploadBatchedImages,
+    // Add an employee
     manageEmployeeController.addEmployee
   );
-
 
 // Request to "/:ID"
 manageEmployeeRouter

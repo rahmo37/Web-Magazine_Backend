@@ -193,6 +193,7 @@ manageGoddo.postAGoddo = async function (req, res, next) {
     );
   }
 
+  // The tracker instance for this FDC
   const tracker = { ...req.tracker };
 
   // Retrieve the files in tracker
@@ -277,7 +278,10 @@ manageGoddo.postAGoddo = async function (req, res, next) {
       };
 
       // Verify that if a creatorImage is provided, it must exist in the list of uploaded files (tracked files)
-      if (passedInFdcInfo.creatorImage) {
+      if (
+        passedInFdcInfo.creatorImage &&
+        passedInFdcInfo.creatorImage !== process.env.DEFAULT_USER_FILENAME
+      ) {
         if (!filesInTracker.has(passedInFdcInfo.creatorImage)) {
           return next(
             getErrorObj(
@@ -352,7 +356,10 @@ manageGoddo.postAGoddo = async function (req, res, next) {
         };
 
         // If creator image is provided
-        if (passedInSdcInfo.creatorImage) {
+        if (
+          passedInSdcInfo.creatorImage &&
+          passedInSdcInfo.creatorImage !== process.env.DEFAULT_USER_FILENAME
+        ) {
           if (!filesInTracker.has(passedInSdcInfo.creatorImage)) {
             return next(
               getErrorObj(

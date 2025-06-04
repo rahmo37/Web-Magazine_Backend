@@ -50,7 +50,7 @@ manageFdc.getAllFdc = async function (req, res, next) {
   }
 };
 
-// This function retrieves an FDC with a protvided fdcID ID
+// This function retrieves an FDC with a provided fdcID ID
 manageFdc.getAnFdc = async function (req, res, next) {
   try {
     // Retrieve the fdcID
@@ -66,7 +66,6 @@ manageFdc.getAnFdc = async function (req, res, next) {
     if (!retrievedFdc) {
       return next(getErrorObj("No FDCs found with the provided ID"));
     }
-
     // Get signedUrl and format the image
     retrievedFdc.creatorImage = await generateImageUrlAndFormat(
       retrievedFdc.creatorImage
@@ -87,6 +86,21 @@ manageFdc.getAnFdc = async function (req, res, next) {
 // This function will create an Fdc
 manageFdc.addAnFdc = async function (req, res, next) {
   try {
+    if (!req.tracker) {
+      return next(
+        getErrorObj(
+          "Unable to create/find the tracker. Please ensure the upID is sent with the request body",
+          400
+        )
+      );
+    }
+
+    // The tracker instance for this FDC
+    const tracker = { ...req.tracker };
+
+    // Retrieve the files in tracker
+    const filesInTracker = new Set([...tracker.fileNames]);
+
     // Get the logged in user's ID. The Fdc will be added to the database under the logged-in employee
     const loggedInEmployeeID = req.user.ID;
 
@@ -96,8 +110,9 @@ manageFdc.addAnFdc = async function (req, res, next) {
     // Check the structure of the information provided
     const passedInFdcInfo = flattenObject(body); // Flattening the passed in FDC data
     const fdcKeys = FirstDegreeCreator.getKeys(); // Retrieving keys from the FDC model
+    if (!fdcKeys.includes("upID")) fdcKeys.push("upID");
     const providedKeys = Object.keys(passedInFdcInfo); // From the passed in FDC info
-    const optionalFields = ["creatorImage", "upID"];
+    const optionalFields = ["creatorImage"];
     if (!structureChecker(fdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
@@ -109,12 +124,46 @@ manageFdc.addAnFdc = async function (req, res, next) {
       );
     }
 
-    // If no images provided, we use the default user image
-    if (!passedInFdcInfo.creatorImage) {
+    // After validation of the structure
+    //  Process image uploads
+    if (
+      passedInFdcInfo.creatorImage &&
+      passedInFdcInfo.creatorImage !== process.env.DEFAULT_USER_FILENAME
+    ) {
+      // If the creator image is not in the fileTracker
+      if (!filesInTracker.has(passedInFdcInfo.creatorImage)) {
+        return next(
+          getErrorObj(
+            `The image file name provided for the FDC creatorImage does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+            400
+          )
+        );
+      }
+
+      // If there are multiple or zero images in the tracker
+      if (filesInTracker.size !== 1) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: When creating an FDC, the server expects exactly one image to be uploaded. However, found ${filesInTracker.size} image(s) in the tracker. Please ensure that one and only one image is provided for a successful FDC creation.`,
+            400
+          )
+        );
+      }
+    } else {
+      // If files detected in tracker, even if there was no creator image
+      if (filesInTracker.size !== 0) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: No creator images was provided, however fileTracker contains image(s)`,
+            400
+          )
+        );
+      }
+
+      // If no images provided, we use the default user image
       passedInFdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
     }
 
-    // After validation of the structure
     // Generate a new fdcID
     const fdcID = generateID("fdc_");
     stagedFdc = {
@@ -126,7 +175,7 @@ manageFdc.addAnFdc = async function (req, res, next) {
     // Now Create the FDC
     const newFdc = await FirstDegreeCreator.createNewFDC(stagedFdc);
 
-    // If successfully created send success the request
+    // If successfully created send success message
     if (newFdc) {
       sendRequest({
         res,

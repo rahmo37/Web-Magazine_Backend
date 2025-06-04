@@ -1,4 +1,4 @@
-// This file manages althe SDC operations
+// This file manages all the SDC operations
 
 // Imports
 const SecondDegreeCreator = require("../../models/SecondDegreeCreator");
@@ -88,6 +88,21 @@ manageSdc.getAnSdc = async function (req, res, next) {
 // This function creates a new SDC
 manageSdc.addAnSdc = async function (req, res, next) {
   try {
+    if (!req.tracker) {
+      return next(
+        getErrorObj(
+          "Unable to create/find the tracker. Please ensure the upID is sent with the request body",
+          400
+        )
+      );
+    }
+
+    // The tracker instance for this SDC
+    const tracker = { ...req.tracker };
+
+    // Retrieve the files in tracker
+    const filesInTracker = new Set([...tracker.fileNames]);
+
     // Get the logged in user's ID. The Sdc will be added to the database under the logged-in employee
     const loggedInEmployeeID = req.user.ID;
 
@@ -97,8 +112,9 @@ manageSdc.addAnSdc = async function (req, res, next) {
     // Check the structure of the information provided
     const passedInSdcInfo = flattenObject(body); // Flattening the passed in SDC data
     const sdcKeys = SecondDegreeCreator.getKeys(); // Retrieving keys from the SDC model
+    if (!sdcKeys.includes("upID")) sdcKeys.push("upID");
     const providedKeys = Object.keys(passedInSdcInfo); // From the passed in SDC info
-    const optionalFields = ["creatorImage", "upID"];
+    const optionalFields = ["creatorImage"];
     if (!structureChecker(sdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
@@ -110,12 +126,46 @@ manageSdc.addAnSdc = async function (req, res, next) {
       );
     }
 
-    // If no images provided, we use the default user image
-    if (!passedInSdcInfo.creatorImage) {
+    // After validation of the structure
+    //  Process image uploads
+    if (
+      passedInSdcInfo.creatorImage &&
+      passedInSdcInfo.creatorImage !== process.env.DEFAULT_USER_FILENAME
+    ) {
+      // If the creator image is not in the fileTracker
+      if (!filesInTracker.has(passedInSdcInfo.creatorImage)) {
+        return next(
+          getErrorObj(
+            `The image file name provided for the SDC creatorImage does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+            400
+          )
+        );
+      }
+
+      // If there are multiple or zero images in the tracker
+      if (filesInTracker.size !== 1) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: When creating an SDC, the server expects exactly one image to be uploaded. However, found ${filesInTracker.size} image(s) in the tracker. Please ensure that one and only one image is provided for a successful SDC creation.`,
+            400
+          )
+        );
+      }
+    } else {
+      // If files detected in tracker, even if there was no creator image
+      if (filesInTracker.size !== 0) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: No creator images was provided, however fileTracker contains image(s)`,
+            400
+          )
+        );
+      }
+
+      // If no images provided, we use the default user image
       passedInSdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
     }
 
-    // After validation of the structure
     // Generate a new sdcID
     const sdcID = generateID("sdc_");
     stagedSdc = {
@@ -127,7 +177,7 @@ manageSdc.addAnSdc = async function (req, res, next) {
     // Now Create the SDC
     const newSdc = await SecondDegreeCreator.createNewSDC(stagedSdc);
 
-    // If successfully created send success the request
+    // If successfully created send success message
     if (newSdc) {
       sendRequest({
         res,
