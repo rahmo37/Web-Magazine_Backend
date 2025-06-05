@@ -123,7 +123,10 @@ LinkSchema.statics.findByAllIds = async function (providedIDs = {}) {
 
   // If ID is passed as a String
   if (typeof providedIDs === "string") {
-    IDs = { [`providedIDs.split("_")[0]ID`]: providedIDs };
+    // Extract the prefix before the first underscore and append "ID" to form
+    // the appropriate field name (e.g. "fdc_abc" -> "fdcID")
+    const key = `${providedIDs.split("_")[0]}ID`;
+    IDs = { [key]: providedIDs };
   } else {
     IDs = { ...providedIDs };
   }

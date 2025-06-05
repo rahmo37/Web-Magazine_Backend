@@ -1,33 +1,57 @@
+// This module assigns a job to a worker thread
 const { Worker } = require("worker_threads");
 const path = require("path");
 const findModule = require("./findModulePath");
+const { generateID } = require("./generateID");
+const formatLogText = require("../helpers/formatLogText");
 
+/**
+ * Main rollback function
+ * @param {String} modulePath - Expects full module path where the functions resides
+ * @param {fnName} fnName - The function to be executed
+ * @param {args} args - If there are any arguments of that function
+ */
 function assignJob(modulePath, fnName = null, args = []) {
   return new Promise((resolve, reject) => {
-    if (!Array.isArray(args)) {
-      args = args === null ? [] : Array.isArray(args) ? args : [args];
-    }
+    //  Confirm arg is an array
+    args = [].concat(args ?? []);
 
-    // Ensure worker path is absolute
+    //  Retrieve the job handler path
     const workerPath = path.resolve(findModule("anyJobWorker.js"));
 
-    // Creates a new worker thread using the given worker file, running file in parallel with the main thread
+    // Assign the job handler with new worker
     const worker = new Worker(workerPath);
 
-    // After the job is done we terminate the worker, and resolve or reject the promise
+    //  Generate a worker ID
+    worker.ID = generateID("worker_", 2);
+
+    // If message event is emitted we assume job is completed
     worker.once("message", (msg) => {
-      worker.terminate();
-      msg.ok
-        ? resolve(msg.result)
-        : // Handles errors from within the worker job logic, sent manually via postMessage
-          reject(new Error(msg.error));
+      // Terminate the worker
+      worker.terminate().then(() => {
+        console.log(`${worker.ID} Terminated`);
+
+        // After worker is terminated resolve or reject the result
+        msg.ok
+          ? resolve(msg.result)
+          : // If any job related error happens
+            reject(new Error(msg.error));
+      });
     });
 
-    // Handles critical worker thread errors (for example, failed to start, crashed, or unhandled exceptions)
+    // If any Worker related error happens
     worker.once("error", reject);
 
-    // Send the job
+    // Assign the task
     worker.postMessage({ modulePath, fnName, args });
+
+    console.log(
+      formatLogText(
+        `${fnName || "Task"} from module ${modulePath} assigned to workerID: ${
+          worker.ID
+        }`
+      )
+    );
   });
 }
 

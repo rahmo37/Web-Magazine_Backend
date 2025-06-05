@@ -4,6 +4,7 @@
  */
 
 const mongoose = require("mongoose");
+const { getErrorObj } = require("../helpers/getErrorObj");
 
 const Schema = mongoose.Schema;
 
@@ -120,8 +121,8 @@ SecondDegreeCreatorSchema.statics.deleteBySdcID = async function (
   }
 
   // Delete the document (inside session if provided)
-  const result = await this.deleteOne({ sdcID }, opts);
-  return result;
+  const deletedSdc = await this.findOneAndDelete({ sdcID }, opts);
+  return deletedSdc;
 };
 
 // Get all the SDC IDs

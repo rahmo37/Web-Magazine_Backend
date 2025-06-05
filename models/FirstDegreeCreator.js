@@ -117,8 +117,8 @@ FirstDegreeCreatorSchema.statics.deleteByFdcID = async function (
   }
 
   // Delete the document (inside session if provided)
-  const result = await this.deleteOne({ fdcID }, opts);
-  return result;
+  const deletedFdc = await this.findOneAndDelete({ fdcID }, opts);
+  return deletedFdc;
 };
 
 // Get all the FDC IDs

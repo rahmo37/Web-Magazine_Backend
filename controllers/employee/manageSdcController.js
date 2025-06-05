@@ -11,6 +11,7 @@ const { default: mongoose } = require("mongoose");
 const { generateID } = require("../../helpers/generateID");
 const { manualMaintenance } = require("../../helpers/scheduledTasks");
 const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
+const rollbackOnUploadFailure = require("../../helpers/rollbackOnUploadFailure");
 
 // Module Scaffolding
 const manageSdc = {};
@@ -168,7 +169,7 @@ manageSdc.addAnSdc = async function (req, res, next) {
 
     // Generate a new sdcID
     const sdcID = generateID("sdc_");
-    stagedSdc = {
+    const stagedSdc = {
       ...passedInSdcInfo,
       sdcID,
       uploaderEmployeeID: loggedInEmployeeID,
@@ -245,7 +246,7 @@ manageSdc.deleteAnSdcAndTheirContent = async function (req, res, next) {
 
   try {
     let linkDeletion = null;
-    let sdcDeletion = null;
+    let deletedSdc = null;
 
     // Retrieve the ID
     const { sdcID } = req.params;
@@ -253,10 +254,10 @@ manageSdc.deleteAnSdcAndTheirContent = async function (req, res, next) {
     // We perform the operations with transaction
     await session.withTransaction(async () => {
       linkDeletion = await Link.deleteManyWithID(`sdcID`, sdcID, session);
-      sdcDeletion = await SecondDegreeCreator.deleteBySdcID(sdcID, session);
+      deletedSdc = await SecondDegreeCreator.deleteBySdcID(sdcID, session);
     });
 
-    if (linkDeletion && sdcDeletion) {
+    if (linkDeletion && deletedSdc) {
       // Send the request and attach the SDC
       sendRequest({
         res,
@@ -270,9 +271,21 @@ manageSdc.deleteAnSdcAndTheirContent = async function (req, res, next) {
       // Run maintenance asynchronously after response is sent
       setImmediate(async () => {
         try {
+          // Delete any images and trackers
+          const result = await rollbackOnUploadFailure(
+            deletedSdc.upID,
+            null,
+            true
+          );
+          console.log(result);
+
+          // Delete any contents if they had, asynchronously
           await manualMaintenance();
         } catch (error) {
-          console.error("Maintenance task failed:", error);
+          console.error(
+            "Image and tracker deletion, or the Maintenance task failed:",
+            error
+          );
         }
       });
     } else {

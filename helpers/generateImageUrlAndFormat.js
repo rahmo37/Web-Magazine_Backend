@@ -2,7 +2,7 @@
 
 // Imports
 const { getPresignedUrl } = require("../helpers/AWS");
-const getErrorObj = require("./getErrorObj");
+const { getErrorObj } = require("./getErrorObj");
 
 module.exports = async function generateImageUrlAndFormat(fileName) {
   if (typeof fileName !== "string") {

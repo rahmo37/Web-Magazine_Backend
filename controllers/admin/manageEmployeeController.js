@@ -10,6 +10,7 @@ const { dateAndTime } = require("../../helpers/dateAndTime");
 const { generateID } = require("../../helpers/generateID");
 const { getHashedPassword } = require("../../helpers/hashPassword");
 const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
+const rollbackOnUploadFailure = require("../../helpers/rollbackOnUploadFailure");
 
 // Module scaffolding
 const manageEmployee = {};
@@ -427,6 +428,12 @@ manageEmployee.deleteAnEmployee = async (req, res, next) => {
       statusCode: 200,
       message: "Employee deleted successfully",
       data: null,
+    });
+
+    // Also delete the image and tracker for this employee
+    setImmediate(async () => {
+      const result = await rollbackOnUploadFailure(employee.upID);
+      console.log(result);
     });
   } catch (error) {
     next(error);

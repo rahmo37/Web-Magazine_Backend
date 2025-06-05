@@ -21,8 +21,10 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
       // Retrieve the existing tracker
       let tracker = (await UploadTracker.getTracker(upID))?.toObject();
 
-      // If a tracker is found however the method is post send an error
-      if (tracker && req.method === "POST") {
+      // If a tracker is found but the method is POST and the tracker has no files, 
+      // then any attempt to reuse this redundant tracker will be caught by subsequent middleware, 
+      // which will throw an error due to inconsistencies.
+      if (tracker && req.method === "POST" && tracker.fileNames.length === 0) {
         return next(
           getErrorObj("A tracker with the provided upID already exists.", 400)
         );
@@ -66,17 +68,17 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
     //   throw getErrorObj("testing rollback");
     // }
 
-    // If no tracker then we create one
-    if (!tracker) {
-      tracker = await UploadTracker.createTracker(imageMetadata.upID);
-    }
-
     // Upload all files (in parallel)
     const fileNamesInCurrentBatch = await assignJob(
       findModule("AWS.js"),
       "uploadMany",
       [req.files]
     );
+
+    // If no tracker then we create one
+    if (!tracker) {
+      tracker = await UploadTracker.createTracker(imageMetadata.upID);
+    }
 
     // Updated the tracker
     const updatedTracker = await tracker.addFiles(fileNamesInCurrentBatch);

@@ -16,7 +16,7 @@ const EMP_TYPES = process.env.EMP_TYPES.split(",");
 // Employee Schema
 const EmployeeSchema = new Schema(
   {
-    upID: { type: String, required: true, unique: true },
+    upID: { type: String, unique: true }, // later add required: true
     employeeID: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true },

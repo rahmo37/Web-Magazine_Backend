@@ -4,6 +4,7 @@ const Shongit = require("../models/Departments/Shongit");
 const Link = require("../models/Link");
 const structureChecker = require("./structureChecker");
 const rollbackOnUploadFailure = require("./rollbackOnUploadFailure");
+const formatLogText = require("./formatLogText");
 
 // Module Scaffolding
 const orphanedContent = {};
@@ -34,18 +35,23 @@ async function trimmer(entity, IDPrefix) {
         // Delete images for each entity
         for (let eachID of deleteResult.upIDs) {
           const imageDeletionResult = await rollbackOnUploadFailure(eachID);
-          console.log(imageDeletionResult);
+          console.log(formatLogText(imageDeletionResult));
         }
 
-        console.log(`Orphaned ${entity.modelName}(s) deleted`, {
-          deletedCount: deleteResult.deletedCount,
-          extraIDsArr,
-        });
+        // Success Confirmation
+        console.log(
+          formatLogText(`Orphaned ${entity.modelName}(s) deleted`, {
+            deletedCount: deleteResult.deletedCount,
+            extraIDsArr,
+          })
+        );
       } else {
-        console.log(`No orphaned ${entity.modelName}(s) to delete`);
+        console.log(
+          formatLogText(`No orphaned ${entity.modelName}(s) to delete`)
+        );
       }
     } else {
-      console.log(`No orphaned ${entity.modelName}(s) found`);
+      console.log(formatLogText(`No orphaned ${entity.modelName}(s) found`));
     }
   } catch (error) {
     console.log(error);

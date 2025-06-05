@@ -2,13 +2,17 @@
 const Link = require("../models/Link");
 const structureChecker = require("./structureChecker");
 const rollbackOnUploadFailure = require("./rollbackOnUploadFailure");
+const formatLogText = require("./formatLogText");
 const hemantoFdcID = process.env.HEMANTO_FDCID;
 const hemantoSdcID = process.env.HEMANTO_SDCID;
 
 // Module Scaffolding
 const orphanedCreator = {};
 
-// This function trims the orphaned creators
+/**
+ * Trims (deletes) orphaned creators—those with no links in the Link collection.
+ * - entity: a Mongoose model instance for FDC or SDC
+ */
 orphanedCreator.trimCreator = async function (entity) {
   try {
     const hemantoID =
@@ -27,28 +31,31 @@ orphanedCreator.trimCreator = async function (entity) {
       if (extraIDsArr.length > 0) {
         const deleteResult = await entity.deleteByIDs(extraIDsArr);
 
-
-        // Delete images for each entity
+        // Delete images for each entity and log result
         for (let eachID of deleteResult.upIDs) {
           const imageDeletionResult = await rollbackOnUploadFailure(eachID);
-          console.log(imageDeletionResult);
+          console.log(formatLogText(imageDeletionResult));
         }
 
         //  Print the result
-        console.log(`Orphaned ${entity.modelName}(s) deleted`, {
+        const resultMsg = `Orphaned ${
+          entity.modelName
+        }(s) deleted: ${JSON.stringify({
           deletedCount: deleteResult.deletedCount,
           extraIDsArr,
-        });
+        })}`;
+        console.log(formatLogText(resultMsg));
       } else {
-        console.log(
-          `No orphaned ${entity.modelName}(s) to delete. However the structure did not match with the Link collection please reconcile the Link entity promptly!`
-        );
+        const warnMsg = `No orphaned ${entity.modelName}(s) to delete. However, the structure did not match with the Link collection. Please reconcile the Link entity promptly!`;
+        console.log(formatLogText(warnMsg));
       }
     } else {
-      console.log(`No orphaned ${entity.modelName}(s) found`);
+      const noOrphanMsg = `No orphaned ${entity.modelName}(s) found.`;
+      console.log(formatLogText(noOrphanMsg));
     }
   } catch (error) {
-    console.error(`Error trimming orphaned ${entity.modelName}(s):`, error);
+    const errorMsg = `Error trimming orphaned ${entity.modelName}(s): ${error}`;
+    console.error(formatLogText(errorMsg));
   }
 };
 
