@@ -126,7 +126,6 @@ SubcategorySchema.statics.deleteByIDs = async function (ganIDs) {
     if (docChanged) {
       // because we mutated nested paths, let Mongoose know:
       doc.markModified("children");
-      console.log();
       await doc.save();
       docsModified++;
     }

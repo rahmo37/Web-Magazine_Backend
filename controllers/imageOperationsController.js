@@ -15,14 +15,15 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
   if (!req.files || req.files.length === 0) {
     // If an upID is found in the request, we try to retrieve the existing tracker. If no tracker is found, we create a new one and attach it to the req object.
     if (req.body.upID) {
+      
       // Save the upID
       let upID = req.body.upID;
 
       // Retrieve the existing tracker
       let tracker = (await UploadTracker.getTracker(upID))?.toObject();
 
-      // If a tracker is found but the method is POST and the tracker has no files, 
-      // then any attempt to reuse this redundant tracker will be caught by subsequent middleware, 
+      // If a tracker is found but the method is POST and the tracker has no files,
+      // then any attempt to reuse this redundant tracker will be caught by subsequent middleware,
       // which will throw an error due to inconsistencies.
       if (tracker && req.method === "POST" && tracker.fileNames.length === 0) {
         return next(
@@ -30,8 +31,8 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
         );
       }
 
-      // If no tracker, we create a new one
-      if (!tracker) {
+      // If no tracker and the method is post, we create a new one
+      if (!tracker && req.method === "POST") {
         tracker = (await UploadTracker.createTracker(upID))?.toObject();
       }
 
@@ -49,21 +50,41 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
 
   const imageMetadata = { ...req.body.meta };
 
+  // If no upID or batchNumber is provided
+  if (!imageMetadata.upID || !imageMetadata.batchNumber) {
+    return next(getErrorObj("Metadata must contain upID and batchNumber", 400));
+  }
+
   // Retrieve an existing tracker if any
   let tracker = await UploadTracker.getTracker(imageMetadata.upID);
 
   try {
     // If a tracker exists and the batch number is 1 or a tracker doesn't exists but batch number is not 1
     if (
-      (tracker && imageMetadata.batchNumber === 1) ||
+      (tracker && imageMetadata.batchNumber === 1 && req.method === "POST") ||
       (!tracker && imageMetadata.batchNumber !== 1)
     ) {
       const msg = tracker
         ? "A tracker already exists with the provided upID"
-        : "You must provide the upID with your upload request";
+        : "BatchNumber is more than 1 however no tracker found. Please provide a correct upID with the request";
       return next(getErrorObj(msg, 400));
+    } 
+    // If the request is patch or put, but their is no tracker
+    else if(!tracker && req.method !== "POST") {
+      return next(getErrorObj("Received a PATCH/PUT request, but no tracker found", 400));
     }
 
+    //  Destructure the image files
+    let imageFiles = [...req.files];
+
+    // If tracker is found and the method is not post (patch or put)
+    // We do not re-upload same image thus, we filter out the existing images
+    if (tracker && req.method !== "POST") {
+      const fileSet = new Set(tracker.fileNames);
+      imageFiles = imageFiles.filter((file) => !fileSet.has(file.originalname));
+    }
+
+    // ! Delete later
     // if (imageMetadata.batchNumber === 2) {
     //   throw getErrorObj("testing rollback");
     // }
@@ -72,11 +93,11 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
     const fileNamesInCurrentBatch = await assignJob(
       findModule("AWS.js"),
       "uploadMany",
-      [req.files]
+      [imageFiles]
     );
 
     // If no tracker then we create one
-    if (!tracker) {
+    if (!tracker && req.method === "POST") {
       tracker = await UploadTracker.createTracker(imageMetadata.upID);
     }
 
@@ -91,15 +112,19 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
       data: updatedTracker,
     });
   } catch (error) {
+    console.error("Batch upload error:", error);
+
     try {
       if (tracker) {
         const result = await rollbackOnUploadFailure(tracker.upID);
-        console.log(result);
+        console.log("Rollback successful:", result);
       } else {
         console.log("No tracker found. Nothing to rollback.");
       }
     } catch (rollbackError) {
-      next(rollbackError);
+      // Explicitly log rollback error for easier debugging.
+      console.error("Rollback error:", rollbackError);
+      return next(rollbackError);
     }
     return next(error);
   }

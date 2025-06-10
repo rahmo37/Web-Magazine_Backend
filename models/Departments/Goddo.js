@@ -139,6 +139,7 @@ SubcategorySchema.statics.getArticleKeys = function () {
   const exclude = [
     "articleTrailer",
     "aboutArticle",
+    "articleCover",
     "mainContent",
     "_id",
     "__v",
@@ -150,6 +151,43 @@ SubcategorySchema.statics.getArticleKeys = function () {
     .filter((key) => !exclude.includes(key));
   const keys = [...new Set(allowedKeys)];
   return keys;
+};
+
+SubcategorySchema.statics.getAGoddoSection = async function (
+  subID,
+  godID,
+  secID
+) {
+  // 1. Query the right subcategory (defensive: check for null)
+  const goddoCategory = await this.findOne({
+    subcategoryID: subID,
+    content: {
+      $elemMatch: {
+        "metadata.godID": godID,
+        "article.mainContent.sectionID": secID,
+      },
+    },
+  }).hint({
+    subcategoryID: 1,
+    "content.metadata.godID": 1,
+    "content.article.mainContent.sectionID": 1,
+  });
+
+  // 2. Throw error if not found
+  if (!goddoCategory) {
+    throw getErrorObj("No goddo section found with the provided IDs", 400);
+  }
+
+  for (const content of goddoCategory.content) {
+    if (content.metadata.godID === godID) {
+      const foundSection = content.article.mainContent.find(
+        (section) => section.sectionID === secID
+      );
+      if (foundSection) return foundSection;
+    }
+  }
+
+  throw getErrorObj("No goddo section found with the provided IDs", 400);
 };
 
 // Create a goddo with subcategory ID. find the subcategory and just push the goddo

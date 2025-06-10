@@ -45,9 +45,12 @@ function assignJob(modulePath, fnName = null, args = []) {
     // Assign the task
     worker.postMessage({ modulePath, fnName, args });
 
+    // Extract the module name
+    const moduleName = path.basename(modulePath);
+
     console.log(
       formatLogText(
-        `${fnName || "Task"} from module ${modulePath} assigned to workerID: ${
+        `${fnName || "Task"} from module ${moduleName} assigned to workerID: ${
           worker.ID
         }`
       )

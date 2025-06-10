@@ -551,12 +551,12 @@ manageGoddo.postAGoddo = async function (req, res, next) {
     //!delete console.log(newLink, newFdc, newSdc, newContent, subcategoryID, newContent.article.mainContent);
 
     // Start DB operations
-    await session.withTransaction(async () => {
+    const transactionCompleted = await session.withTransaction(async () => {
       // Create new FDC if not null
       if (newFdc) {
         await FirstDegreeCreator.createNewFDC(newFdc, session);
         // Additionally create a tracker for the FDC
-        if (newTrackerForFdc.fileNames.length) {
+        if (newTrackerForFdc) {
           await UploadTracker.createTracker(
             newTrackerForFdc.upID,
             newTrackerForFdc.fileNames,
@@ -569,7 +569,7 @@ manageGoddo.postAGoddo = async function (req, res, next) {
       if (newSdc) {
         await SecondDegreeCreator.createNewSDC(newSdc, session);
         // Additionally create a tracker for the SDC
-        if (newTrackerForSdc.fileNames.length) {
+        if (newTrackerForSdc) {
           await UploadTracker.createTracker(
             newTrackerForSdc.upID,
             newTrackerForSdc.fileNames,
@@ -594,15 +594,22 @@ manageGoddo.postAGoddo = async function (req, res, next) {
 
       // Create the link
       await Link.createLink(newLink, session);
+
+      return true;
     });
 
-    // Send the request
-    sendRequest({
-      res,
-      statusCode: 201,
-      message: "Content created successfully",
-      data: newLink,
-    });
+    if (transactionCompleted) {
+      // Send the request
+      sendRequest({
+        res,
+        statusCode: 201,
+        message: "Content created successfully",
+        data: newLink,
+      });
+    } else {
+      console.error("Transaction failed while creating the Goddo");
+      return next(getErrorObj());
+    }
   } catch (error) {
     next(error);
   } finally {
@@ -618,7 +625,9 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
     if (!secID) {
       return next();
     }
-    const sectionData = deepCopy(req.body);
+
+    //  Deep copy the section data
+    const sectionData = flattenObject(deepCopy(req.body));
 
     // Check the section data
     if (
@@ -629,13 +638,107 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
     ) {
       return next(
         getErrorObj(
-          `Section information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: sectionArticle and/or sectionImages. ${
-            sectionData.section
-              ? "Keys do not need to be wrapped inside a section object wrapper"
-              : ""
+          `Section information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: sectionArticle and/or sectionImages.
           }`,
           400
         )
+      );
+    }
+
+    // images needed to be deleted
+    let imagesToDelete = [];
+
+    // Get the goddo
+    const goddo = await Goddo.getGoddoWithID(godID);
+
+    // If not found
+    if (!goddo) {
+      return next(getErrorObj(`No goddo found with the provided IDs`, 400));
+    }
+
+    // Get the tracker
+    let tracker = null;
+    if (req.tracker) {
+      tracker = { ...req.tracker };
+    } else {
+      if (!goddo.metadata.upID) {
+        return next(
+          getErrorObj(
+            `Inconsistencies detected: no upID found for this content!`,
+            400
+          )
+        );
+      }
+      tracker = await UploadTracker.getTracker(goddo.metadata.upID);
+    }
+
+    // If no tracker
+    if (!tracker) {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this content!`,
+          400
+        )
+      );
+    }
+
+    // Create a set for fast look-up, filter out the articleCover image
+    let sectionFilesInTracker = new Set(
+      tracker.fileNames.filter(
+        (eachFile) => eachFile !== goddo.article.articleCover
+      )
+    );
+
+    // Retrieve the current section
+    const currentSection = goddo.article.mainContent.find(
+      (section) => section.sectionID === secID
+    );
+
+    // If section not found
+    if (!currentSection) {
+      return next(
+        getErrorObj(`No goddo section found with the provided IDs`, 400)
+      );
+    }
+
+    // Check if the section images are not provided, however there was images uploaded.
+    // Reconcile the upload tracker with current section images
+    if (!sectionData.sectionImages) {
+      // Flatten all the section images
+      const allSectionImages = goddo.article.mainContent
+        .map((eachSection) => eachSection.sectionImages)
+        .flat(Infinity);
+
+      // Then check the images integrity
+      if (!structureChecker(allSectionImages, [...sectionFilesInTracker])) {
+        return next(
+          getErrorObj(
+            `Images were uploaded, but no sectionImages provided`,
+            400
+          )
+        );
+      }
+    } else {
+      // Check if every image in the provided sectionImages array exists inside the tracker
+      if (
+        !sectionData.sectionImages.every((file) =>
+          sectionFilesInTracker.has(file)
+        )
+      ) {
+        return next(
+          getErrorObj(
+            `Provided images for section, has file names that are not found in the tracker!`,
+            400
+          )
+        );
+      }
+
+      // Make a set out of the provided images
+      const providedImagesSet = new Set(sectionData.sectionImages);
+
+      // Filter out the images need to be deleted
+      imagesToDelete = currentSection.sectionImages.filter(
+        (eachImage) => !providedImagesSet.has(eachImage)
       );
     }
 
@@ -654,6 +757,25 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
       message: "Updated section successfully",
       data: updatedSection,
     });
+
+    if (imagesToDelete.length > 0) {
+      setImmediate(async () => {
+        try {
+          // Delete any images and trackers
+          const result = await rollbackOnUploadFailure(
+            goddo.metadata.upID,
+            imagesToDelete,
+            false
+          );
+          console.log(result);
+        } catch (error) {
+          console.error(
+            "Image and tracker deletion failed",
+            error
+          );
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -728,18 +850,22 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
   try {
     // Extract IDs from the request
     const { subID, godID } = req.params;
-    const articleData = deepCopy(req.body.article);
+    const articleData = deepCopy(flattenObject(req.body.article));
 
     // Check the structure
-    const providedKeys = Object.keys(flattenObject(articleData));
-    const articleKeys = Goddo.getArticleKeys();
-    const optionalFields = ["articleTrailer", "aboutArticle"];
-    if (!structureChecker(articleKeys, providedKeys, optionalFields)) {
+    const providedKeys = Object.keys(articleData);
+    const optionalFields = [
+      "articleName",
+      "articleTrailer",
+      "aboutArticle",
+      "articleCover",
+    ];
+    if (!structureChecker([], providedKeys, optionalFields)) {
       return next(
         getErrorObj(
-          `Article information provided is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${articleKeys.join(
-            ", "
-          )}, ${optionalFields.join("(Optional), ")}(Optional).${
+          `Article information provided is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${optionalFields.join(
+            "(Optional), "
+          )}(Optional).${
             providedKeys.includes("mainContent")
               ? ` NOTE: You cannot change Main Content through this endpoint`
               : ""
@@ -747,6 +873,82 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
           400
         )
       );
+    }
+
+    // images needed to be deleted
+    let imagesToDelete = [];
+
+    // Get the goddo
+    const goddo = await Goddo.getGoddoWithID(godID);
+
+    // If not found
+    if (!goddo) {
+      return next(getErrorObj(`No goddo found with the provided IDs`, 400));
+    }
+
+    // Get the tracker
+    let tracker = null;
+    if (req.tracker) {
+      tracker = { ...req.tracker };
+    } else {
+      if (!goddo.metadata.upID) {
+        return next(
+          getErrorObj(
+            `Inconsistencies detected: no upID found for this content!`,
+            400
+          )
+        );
+      }
+      tracker = await UploadTracker.getTracker(goddo.metadata.upID);
+    }
+
+    // If no tracker
+    if (!tracker) {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this content!`,
+          400
+        )
+      );
+    }
+
+    // Current files in the tracker Create a set for fast look-up
+    let filesInTrackerSet = new Set(tracker.fileNames);
+
+    if (!articleData.articleCover) {
+      // Flatten all the section images
+      const allSectionImages = goddo.article.mainContent
+        .map((eachSection) => eachSection.sectionImages)
+        .flat(Infinity);
+
+      // Also add the articleCover in the all section images
+      if (
+        goddo.article.articleCover !== process.env.DEFAULT_PLACEHOLDER_FILENAME
+      ) {
+        allSectionImages.push(goddo.article.articleCover);
+      }
+
+      // Then check the images integrity
+      if (!structureChecker(allSectionImages, [...filesInTrackerSet])) {
+        return next(
+          getErrorObj(`Images were uploaded, but no articleCover provided`, 400)
+        );
+      }
+    } else {
+      if (!filesInTrackerSet.has(articleData.articleCover)) {
+        return next(
+          getErrorObj(
+            `Provided filename for articleCover, is not found in the tracker!`,
+            400
+          )
+        );
+      }
+
+      // Filter out the images need to be deleted
+      imagesToDelete =
+        goddo.article.articleCover !== process.env.DEFAULT_PLACEHOLDER_FILENAME
+          ? [goddo.article.articleCover]
+          : [];
     }
 
     // Update the goddo metadata
@@ -763,6 +965,26 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
       message: "Updated article successfully",
       data: updatedArticleData,
     });
+
+    // See if previous articleCover needs to be deleted
+    if (imagesToDelete.length > 0) {
+      setImmediate(async () => {
+        try {
+          // Delete any images and trackers
+          const result = await rollbackOnUploadFailure(
+            goddo.metadata.upID,
+            imagesToDelete,
+            false
+          );
+          console.log(result);
+        } catch (error) {
+          console.error(
+            "Image and tracker deletion failed",
+            error
+          );
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }
