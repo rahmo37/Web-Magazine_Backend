@@ -272,7 +272,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
 // Update an employee info
 manageEmployee.updateAnEmployee = async (req, res, next) => {
   try {
-    // Retrieve the ID
+    // Retrieve the ID from req.params
     const { ID } = req.params;
 
     // If the ID does not start with emp_
