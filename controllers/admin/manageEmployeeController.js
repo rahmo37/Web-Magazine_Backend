@@ -282,7 +282,7 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       );
     }
 
-    // Retrieve the employee
+    // Retrieve the employee instance
     const employee = await Employee.getEmployeeByID(ID);
 
     // If no employee found with the provided ID
