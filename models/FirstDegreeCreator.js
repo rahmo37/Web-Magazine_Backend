@@ -63,6 +63,7 @@ FirstDegreeCreatorSchema.statics.getKeys = function () {
   return keys;
 };
 
+// Update an FDC
 FirstDegreeCreatorSchema.statics.updateAnFdc = async function (fdcID, fdcData) {
   // Find the Fdc
   const fdc = await this.findOne({ fdcID });

@@ -103,6 +103,7 @@ module.exports = async function rollbackOnUploadFailure(
       message = `and ${deletedCount} files deleted from tracker. Verify counts match.`;
     }
 
+
     // Return a summary of what happened
     return `${String(
       s3DeleteResult
