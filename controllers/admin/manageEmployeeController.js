@@ -11,6 +11,7 @@ const { generateID } = require("../../helpers/generateID");
 const { getHashedPassword } = require("../../helpers/hashPassword");
 const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
 const rollbackOnUploadFailure = require("../../helpers/rollbackOnUploadFailure");
+const UploadTracker = require("../../models/UploadTracker");
 
 // Module scaffolding
 const manageEmployee = {};
@@ -322,6 +323,60 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       );
     }
 
+    // If tracker is attached we retrieve the tracker, otherwise we get the tracker using the employee.upID
+    const tracker =
+      req.tracker ??
+      (employee.upID && (await UploadTracker.getTracker(employee.upID)));
+
+    // If no tracker is found we return error
+    if (!tracker) {
+      return next(
+        getErrorObj(`No upload tracker found for this employee!`, 400)
+      );
+    }
+
+    // This will contain the images that needs to be delete
+    let imagesToDelete = [];
+
+    // Tracker files becomes a set from array for faster look-up
+    const filesInTrackerSet = new Set(tracker.fileNames);
+
+    // If the creator image is not provided for update, we check if there are any files uploaded
+    if (!flattenedUpdateInfo.profilePicture) {
+      const wrappedProfilePicture =
+        employee.employeePreferences.profilePicture !==
+        process.env.DEFAULT_USER_FILENAME
+          ? [employee.employeePreferences.profilePicture]
+          : [];
+      // Then check the current images integrity
+      if (!structureChecker(wrappedProfilePicture, [...filesInTrackerSet])) {
+        return next(
+          getErrorObj(
+            "Images were uploaded, but no profile picture provided",
+            400
+          )
+        );
+      }
+    } else {
+      // See if the provided creator image is uploaded and in the filesTracker
+      if (!filesInTrackerSet.has(flattenedUpdateInfo.profilePicture)) {
+        return next(
+          getErrorObj(
+            `Provided profilePicture filename not found in tracker.`,
+            400
+          )
+        );
+      }
+
+      // Grab the current image to delete
+      if (
+        employee.employeePreferences.profilePicture !==
+        process.env.DEFAULT_USER_FILENAME
+      ) {
+        imagesToDelete.push(employee.employeePreferences.profilePicture);
+      }
+    }
+
     // If the employee is an admin
     if (ID !== req.user.ID && employee.employeeType === "ra") {
       return next(
@@ -376,6 +431,23 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       message: "Employee updated",
       data: updatedEmployeeObj,
     });
+
+    // Finally delete the images if any
+    if (imagesToDelete.length > 0) {
+      setImmediate(async () => {
+        try {
+          // Delete any images from the tracker
+          const result = await rollbackOnUploadFailure(
+            employee.upID,
+            imagesToDelete,
+            false
+          );
+          console.log(result);
+        } catch (error) {
+          console.error("Image and tracker deletion failed", error);
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }

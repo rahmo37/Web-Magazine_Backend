@@ -419,39 +419,47 @@ validator.dateOfBirth = function (dateOfBirth) {
  *  - Contains at least one element.
  *  - Each department name (after converting to lowercase) is one of the allowed names from process.env.DEPARTMENTS.
  */
-validator.department = function (department) {
+function validateDepartmentField(fieldValue, fieldName = "Department") {
   const errors = [];
 
-  if (!department) {
-    errors.push("Department is required.");
+  if (!fieldValue) {
+    errors.push(`${fieldName} is required.`);
     return { valid: false, error: numberErrors(errors) };
   }
 
-  if (!Array.isArray(department)) {
-    errors.push("Department field must be an array.");
+  if (!Array.isArray(fieldValue)) {
+    errors.push(`${fieldName} field must be an array.`);
     return { valid: false, error: numberErrors(errors) };
   }
 
-  if (department.length === 0) {
-    errors.push("Department array must contain at least one element.");
+  console.log(fieldName);
+
+  if (fieldName === "Department" && fieldValue.length === 0) {
+    errors.push(`${fieldName} array must contain at least one element.`);
   }
 
-  // Assuming department names should be one of the given values (case-insensitive)
   const validDepartments = process.env.DEPARTMENTS.split(",");
-
-  // Convert department array to lowercase strings for validation
-  const lowerCaseDepts = department.map((dept) =>
+  const lowerCaseDepts = fieldValue.map((dept) =>
     typeof dept === "string" ? dept.toLowerCase() : ""
   );
   if (!lowerCaseDepts.every((dept) => validDepartments.includes(dept))) {
-    errors.push("Invalid department name found!");
+    errors.push(`Invalid ${fieldName.toLowerCase()} name found!`);
   }
 
   return {
     valid: errors.length === 0,
     error: numberErrors(errors),
   };
+}
+
+validator.department = function (department) {
+  return validateDepartmentField(department, "Department");
 };
+
+validator.deniedDepartment = function (department) {
+  return validateDepartmentField(department, "Denied Department");
+};
+
 
 //! --------------------Date Joined
 /**
