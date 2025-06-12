@@ -72,7 +72,7 @@ scheduler.manualMaintenance = function () {
 };
 
 // Run one maintenance immediately when server starts
-scheduler.manualMaintenance();
+// scheduler.manualMaintenance();
 
 /**
  * Gracefully stop cron on exit (Ctrl+C).

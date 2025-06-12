@@ -159,6 +159,8 @@ EmployeeSchema.methods.updateAnEmployee = async function (updateInfo) {
       // Check if the key is supposed to be in the nested employeeBio object.
       if (["firstName", "lastName", "gender", "dateOfBirth"].includes(key)) {
         this.set(`employeeBio.${key}`, updateInfo[key]);
+      } else if (["profilePicture", "themeColor"].includes(key)) {
+        this.set(`employeePreferences.${key}`, updateInfo[key]);
       } else {
         this.set(key, updateInfo[key]);
       }

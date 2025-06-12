@@ -230,7 +230,10 @@ manageEmployee.addEmployee = async (req, res, next) => {
       department,
       deniedDepartment,
       employeeBio: { firstName, lastName, gender, dateOfBirth },
-      employeePreferences: { profilePicture, themeColor: null },
+      employeePreferences: {
+        profilePicture,
+        themeColor: process.env.DEFAULT_THEME_COLOR,
+      },
     };
 
     // Gathering other necessary information
@@ -291,7 +294,7 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
     }
 
     // Now retrieve the update information
-    const updateInfo = req.body;
+    const updateInfo = { ...req.body };
 
     // Flatten the updated info if provided in a nested structure
     const flattenedUpdateInfo = flattenObject(updateInfo);
@@ -299,10 +302,12 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
     // Convert employee keys to a Set for faster lookup
     const employeeKeysSet = new Set(Employee.getKeys());
 
-    // Add the isActiveAccount and temporaryApproval field manually since the getKeys() does not return isActiveAccount key
+    // Add the isActiveAccount, temporaryApproval, profilePicture and themeColor fields manually since the getKeys() does not return these keys
     if (ID !== req.user.ID) {
       employeeKeysSet.add("isActiveAccount");
       employeeKeysSet.add("temporaryApproval");
+      employeeKeysSet.add("themeColor");
+      employeeKeysSet.add("profilePicture");
     }
 
     // Find invalid keys
@@ -340,14 +345,14 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       flattenedUpdateInfo.deniedDepartment = [];
     }
 
-    // if department is being updated ensure all the names are in lowercase
+    // If department is being updated ensure all the names are in lowercase
     if (flattenedUpdateInfo.department) {
       flattenedUpdateInfo.department = flattenedUpdateInfo.department.map(
         (dept) => dept.toLowerCase()
       );
     }
 
-    // if denied department is being updated ensure all the names are in lowercase
+    // If denied department is being updated ensure all the names are in lowercase
     if (flattenedUpdateInfo.deniedDepartment) {
       flattenedUpdateInfo.deniedDepartment =
         flattenedUpdateInfo.deniedDepartment.map((dept) => dept.toLowerCase());
