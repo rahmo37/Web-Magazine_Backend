@@ -74,7 +74,7 @@ function makeBanglaTextValidator(fieldLabel, { min = 1, max = Infinity } = {}) {
  */
 function validateImageString(imageStr) {
   const errors = [];
-  const allowedTypes = ["jpg", "jpeg", "png", "gif", "webp"];
+  const allowedTypes = ["jpg", "jpeg", "png", "webp"];
 
   if (typeof imageStr !== "string" || !imageStr.trim()) {
     errors.push("Image string must be a non-empty string.");
@@ -459,7 +459,6 @@ validator.department = function (department) {
 validator.deniedDepartment = function (department) {
   return validateDepartmentField(department, "Denied Department");
 };
-
 
 //! --------------------Date Joined
 /**

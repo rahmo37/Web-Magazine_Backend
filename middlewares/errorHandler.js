@@ -1,4 +1,5 @@
 const rollbackOnUploadFailure = require("../helpers/rollbackOnUploadFailure");
+const findAndReturnProperty = require("../helpers/findAndReturnProperty");
 
 module.exports = async (err, req, res, next) => {
   if (err.name === "MulterError") {
@@ -22,8 +23,12 @@ module.exports = async (err, req, res, next) => {
             ? JSON.parse(req.body.meta)
             : req.body.meta;
       }
-      upID = meta.upID ? meta.upID : req.body.upID ? req.body.upID : null;
-
+      // Retrieve the upID if present
+      upID =
+        meta.upID ??
+        req.body.upID ??
+        findAndReturnProperty(req.body, "upID") ??
+        null;
       if (upID) {
         const result = await rollbackOnUploadFailure(upID, null, null, req);
         console.log("Rollback result:", result);

@@ -5,6 +5,7 @@ const { getErrorObj } = require("../helpers/getErrorObj");
 const { sendRequest } = require("../helpers/sendRequest");
 const findModule = require("../helpers/findModulePath");
 const assignJob = require("../helpers/assignJob");
+const findAndReturnProperty = require("../helpers/findAndReturnProperty");
 
 // Module scaffolding
 const imageOperations = {};
@@ -13,11 +14,10 @@ const imageOperations = {};
 imageOperations.uploadBatchedImages = async function (req, res, next) {
   // If no files found we assume no images uploaded
   if (!req.files || req.files.length === 0) {
-    // If an upID is found in the request, we try to retrieve the existing tracker. If no tracker is found, we create a new one and attach it to the req object.
-    if (req.body.upID) {
-      // Save the upID
-      let upID = req.body.upID;
+    let upID = findAndReturnProperty(req.body, "upID");
 
+    // If an upID is found in the request, we try to retrieve the existing tracker. If no tracker is found, we create a new one and attach it to the req object.
+    if (upID) {
       // Retrieve the existing tracker
       let tracker = (await UploadTracker.getTracker(upID))?.toObject();
 

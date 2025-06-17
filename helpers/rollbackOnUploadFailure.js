@@ -51,6 +51,7 @@ module.exports = async function rollbackOnUploadFailure(
 
   //  If the method is PATCH or PUT we look-into the staged files
   if (method === "PATCH" || method === "PUT") {
+    console.log(method, "<--");
     // On PATCH or PUT: delete files from stagedFileNames
     if (!tracker || tracker.stagedFileNames.length === 0) {
       return "No staged files to delete.";
@@ -58,7 +59,6 @@ module.exports = async function rollbackOnUploadFailure(
 
     // Retrieve the staged fileNames
     fileNames = [...tracker.stagedFileNames];
-
 
     try {
       // Delete from s3
@@ -76,9 +76,10 @@ module.exports = async function rollbackOnUploadFailure(
     } catch (error) {
       throw getErrorObj(`Rollback failed: ${error.message}`, 500);
     }
-  } 
+  }
   // If the method is DELETE, POST or no method is provided
   else if (method === "DELETE" || method === "POST" || !method) {
+    console.log(method, "<--");
     // Determine if we need to delete the tracker
     let isDeleteTracker = deleteTracker;
 
@@ -89,7 +90,6 @@ module.exports = async function rollbackOnUploadFailure(
 
     // If no passed-in file names
     if (!passedInFileNames) {
-
       // We gather the fileNames from the tracker, or set the names to empty array
       fileNames = tracker ? [...tracker.fileNames] : [];
 
@@ -168,4 +168,3 @@ function assertDeleteTracker(value) {
 function getErrorMessage(msg) {
   return `${msg}. Rollback failed.`;
 }
-

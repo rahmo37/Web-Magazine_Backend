@@ -857,6 +857,7 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
     // Check the structure
     const providedKeys = Object.keys(articleData);
     const optionalFields = [
+      "upID",
       "articleName",
       "articleTrailer",
       "aboutArticle",
@@ -890,22 +891,28 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
 
     // Get the tracker
     let tracker = null;
-    if (req.tracker) {
-      tracker = { ...req.tracker };
-    } else {
-      if (!goddo.metadata.upID) {
-        return next(
-          getErrorObj(
-            `Inconsistencies detected: no upID found for this content!`,
-            400
-          )
-        );
-      }
+
+    // If articleCover is not provided we get the tracker manually
+    if (!articleData.articleCover) {
       tracker = await UploadTracker.getTracker(goddo.metadata.upID);
+    }
+    // If sectionImages is provided but tracker is not attached
+    else if (articleData.articleCover && !req.tracker) {
+      req.body.upID = goddo.metadata.upID;
+      return next(
+        getErrorObj(
+          `upID must be provided if updating images or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
     }
 
     // If no tracker
-    if (!tracker) {
+    if (!tracker || typeof tracker !== "object") {
       return next(
         getErrorObj(
           `Inconsistencies detected: no tracker was found for this content!`,
@@ -914,30 +921,20 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
       );
     }
 
-    // Current files in the tracker Create a set for fast look-up
-    let filesInTrackerSet = new Set(tracker.fileNames);
+    // Create a set for fast look-up
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
 
-    if (!articleData.articleCover) {
-      // Flatten all the section images
-      const allSectionImages = goddo.article.mainContent
-        .map((eachSection) => eachSection.sectionImages)
-        .flat(Infinity);
-
-      // Also add the articleCover in the all section images
-      if (
-        goddo.article.articleCover !== process.env.DEFAULT_PLACEHOLDER_FILENAME
-      ) {
-        allSectionImages.push(goddo.article.articleCover);
-      }
-
-      // Then check the images integrity
-      if (!structureChecker(allSectionImages, [...filesInTrackerSet])) {
-        return next(
-          getErrorObj(`Images were uploaded, but no articleCover provided`, 400)
-        );
-      }
-    } else {
-      if (!filesInTrackerSet.has(articleData.articleCover)) {
+    if (!articleData.articleCover && imagesStaged.size > 0) {
+      req.body.upID = goddo.metadata.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no sectionImages provided`, 400)
+      );
+    } else if (
+      articleData.articleCover &&
+      articleData.articleCover !== goddo.article.articleCover
+    ) {
+      if (!imagesStaged.has(articleData.articleCover)) {
         return next(
           getErrorObj(
             `Provided filename for articleCover, is not found in the tracker!`,
@@ -960,29 +957,37 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
       articleData
     );
 
-    // Send the response with the updated article data
-    sendRequest({
-      res,
-      statusCode: 200,
-      message: "Updated article successfully",
-      data: updatedArticleData,
-    });
+    if (updatedArticleData) {
+      if (imagesStaged.size > 0) {
+        // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+        await UploadTracker.mergeAndEmptyStagedFileNames(goddo.metadata.upID);
+      }
 
-    // See if previous articleCover needs to be deleted
-    if (imagesToDelete.length > 0) {
-      setImmediate(async () => {
-        try {
-          // Delete any images and trackers
-          const result = await rollbackOnUploadFailure(
-            goddo.metadata.upID,
-            imagesToDelete,
-            false
-          );
-          console.log(result);
-        } catch (error) {
-          console.error("Image and tracker deletion failed", error);
-        }
+      // Send the response with the updated article data
+      sendRequest({
+        res,
+        statusCode: 200,
+        message: "Updated article successfully",
+        data: updatedArticleData,
       });
+
+      // See if previous articleCover needs to be deleted
+      if (imagesToDelete.length > 0) {
+        setImmediate(async () => {
+          try {
+            // Delete any images and trackers
+            const result = await rollbackOnUploadFailure(
+              goddo.metadata.upID,
+              imagesToDelete,
+              false
+            );
+            console.log(result);
+          } catch (error) {
+            console.error("Image and tracker deletion failed", error);
+          }
+        });
+      }
+    } else {
     }
   } catch (error) {
     next(error);

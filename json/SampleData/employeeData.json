@@ -1,41 +1,751 @@
 [
-    {
-      "email": "arnob@gmail.com",
-      "phone": "+16314567890",
-      "password": "hashed_password_here",
-      "dateJoined": "2025-01-15T10:00:00.000Z",
-      "isAdmin": true,
-      "department": ["*"],
-      "deniedDepartment":[],
-      "accountCreated": "2025-01-15T10:00:00.000Z",
-      "isActiveAccount": true,
-      "employeeType": "ra",
-      "lastLogin": "2025-01-15T10:00:00.000Z",
-      "employeeBio": {
-        "firstName": "Arnob",
-        "lastName": "Ahmed",
-        "gender": "Male",
-        "dateOfBirth": "1990-05-20T00:00:00.000Z"
-      }
+  {
+    "upID": "up_ba8847942f68",
+    "email": "arnob@gmail.com",
+    "phone": "+16314567890",
+    "password": "arnob",
+    "dateJoined": "2025-01-15T10:00:00.000Z",
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-01-15T10:00:00.000Z",
+    "isActiveAccount": true,
+    "employeeType": "ra",
+    "lastLogin": "2025-01-15T10:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Arnob",
+      "lastName": "Ahmed",
+      "gender": "Male",
+      "dateOfBirth": "1990-05-20T00:00:00.000Z"
     },
-    {
-      "email": "sakib@gmail.com",
-      "phone": "+9876543210",
-      "password": "hashed_password_here",
-      "dateJoined": "2025-01-20T09:00:00.000Z",
-      "employeeType": "na",
-      "isAdmin": true,
-      "department": ["goddo"],
-      "deniedDepartment":["goddo"],
-      "accountCreated": "2025-01-20T09:00:00.000Z",
-      "isActiveAccount": true,
-      "lastLogin": null,
-      "employeeBio": {
-        "firstName": "Sakib",
-        "lastName": "Uddin",
-        "gender": "male",
-        "dateOfBirth": "1995-08-12T00:00:00.000Z"
-      }
+    "employeePreference": {
+      "profilePicture": "19708001641-24xfkn.png",
+      "themeColor": "016FB9"
     }
-  ]
-  
+  },
+  {
+    "upID": "up_b50442011aab",
+    "email": "sakib@gmail.com",
+    "phone": "+16314567895",
+    "password": "sakib0A!!",
+    "dateJoined": "2025-01-20T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": true,
+    "department": ["Goddo"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-01-20T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Sakib",
+      "lastName": "Uddin",
+      "gender": "male",
+      "dateOfBirth": "1995-08-12T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "170312"
+    }
+  },
+  {
+    "upID": "up_b50442011123",
+    "email": "aakib@gmail.com",
+    "phone": "+16312512563",
+    "password": "aakib0A!!!!",
+    "dateJoined": "2024-01-01T00:00:00Z",
+    "employeeType": "da",
+    "isAdmin": true,
+    "department": ["goddo"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-01-20T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Aakib",
+      "lastName": "Uddin",
+      "gender": "male",
+      "dateOfBirth": "1995-08-12T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0B5351"
+    }
+  },
+  {
+    "upID": "up_e1585aa48ca8",
+    "email": "hasan@gmail.com",
+    "phone": "+16314567891",
+    "password": "hasan@123",
+    "dateJoined": "2025-02-01T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-01T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-01T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Hasan",
+      "lastName": "Rahman",
+      "gender": "male",
+      "dateOfBirth": "1993-02-16T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "7EA0B7"
+    }
+  },
+  {
+    "upID": "up_1f809b5faabb",
+    "email": "fatema@gmail.com",
+    "phone": "+16314567892",
+    "password": "fatema@123",
+    "dateJoined": "2025-02-02T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["shongit"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-02T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-02T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Fatema",
+      "lastName": "Khatun",
+      "gender": "female",
+      "dateOfBirth": "1992-04-10T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "388697"
+    }
+  },
+  {
+    "upID": "up_f6727033515e",
+    "email": "salma@gmail.com",
+    "phone": "+16314567893",
+    "password": "salma@123",
+    "dateJoined": "2025-02-03T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["cholochitro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-03T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Salma",
+      "lastName": "Begum",
+      "gender": "female",
+      "dateOfBirth": "1989-06-15T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "5438DC"
+    }
+  },
+  {
+    "upID": "up_035603fa6b7c",
+    "email": "kabir@gmail.com",
+    "phone": "+16314567894",
+    "password": "kabir@123",
+    "dateJoined": "2025-02-04T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["bigganOProjukti"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-04T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-04T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Kabir",
+      "lastName": "Islam",
+      "gender": "male",
+      "dateOfBirth": "1991-08-21T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0BC9CD"
+    }
+  },
+  {
+    "upID": "up_9dc782e0248b",
+    "email": "nazia@gmail.com",
+    "phone": "+16314567835",
+    "password": "nazia@123",
+    "dateJoined": "2025-02-05T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-05T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Nazia",
+      "lastName": "Haque",
+      "gender": "female",
+      "dateOfBirth": "1994-09-20T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "170312"
+    }
+  },
+  {
+    "upID": "up_ace60bc40871",
+    "email": "asif@gmail.com",
+    "phone": "+16314567896",
+    "password": "asif@123",
+    "dateJoined": "2025-02-06T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["boiPotro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-06T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-06T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Asif",
+      "lastName": "Jahan",
+      "gender": "male",
+      "dateOfBirth": "1996-01-13T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0B5351"
+    }
+  },
+  {
+    "upID": "up_9aa3e495fda7",
+    "email": "shuvo@gmail.com",
+    "phone": "+16314567897",
+    "password": "shuvo@123",
+    "dateJoined": "2025-02-07T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["artOCulture", "boiPotro", "goddo", "kobita"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-07T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-07T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Shuvo",
+      "lastName": "Hasan",
+      "gender": "male",
+      "dateOfBirth": "1992-12-01T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "7EA0B7"
+    }
+  },
+  {
+    "upID": "up_0170db8265c3",
+    "email": "sumaiya@gmail.com",
+    "phone": "+16314567898",
+    "password": "sumaiya@123",
+    "dateJoined": "2025-02-08T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-08T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Sumaiya",
+      "lastName": "Rashid",
+      "gender": "female",
+      "dateOfBirth": "1997-05-11T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "388697"
+    }
+  },
+  {
+    "upID": "up_1237f8f72c46",
+    "email": "joy@gmail.com",
+    "phone": "+16314567899",
+    "password": "joy@123",
+    "dateJoined": "2025-02-09T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["ebook", "artOCulture", "boiPotro", "goddo", "kobita"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-09T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-09T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Joy",
+      "lastName": "Khan",
+      "gender": "male",
+      "dateOfBirth": "1998-07-29T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "5438DC"
+    }
+  },
+  {
+    "upID": "up_7e70d4b4e86d",
+    "email": "mim@gmail.com",
+    "phone": "+16314567900",
+    "password": "mim@123",
+    "dateJoined": "2025-02-10T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["kobita", "ebook", "artOCulture", "boiPotro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-10T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Mim",
+      "lastName": "Sultana",
+      "gender": "female",
+      "dateOfBirth": "1995-10-09T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0BC9CD"
+    }
+  },
+  {
+    "upID": "up_920fd4bd221a",
+    "email": "elias@gmail.com",
+    "phone": "+16314567901",
+    "password": "elias@123",
+    "dateJoined": "2025-02-11T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-11T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-11T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Elias",
+      "lastName": "Hossain",
+      "gender": "male",
+      "dateOfBirth": "1988-11-23T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "170312"
+    }
+  },
+  {
+    "upID": "up_99ebd5cfc815",
+    "email": "lima@gmail.com",
+    "phone": "+16314567902",
+    "password": "lima@123",
+    "dateJoined": "2025-02-12T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["shakhatkar"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-12T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Lima",
+      "lastName": "Molla",
+      "gender": "female",
+      "dateOfBirth": "1996-04-16T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0B5351"
+    }
+  },
+  {
+    "upID": "up_453b28923c26",
+    "email": "amin@gmail.com",
+    "phone": "+16314567903",
+    "password": "amin@123",
+    "dateJoined": "2025-02-13T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["shomajODorshon", "ebook", "artOCulture", "boiPotro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-13T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-13T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Amin",
+      "lastName": "Ferdous",
+      "gender": "male",
+      "dateOfBirth": "1990-03-02T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "7EA0B7"
+    }
+  },
+  {
+    "upID": "up_d570f945f8ce",
+    "email": "rupom@gmail.com",
+    "phone": "+16314567904",
+    "password": "rupom@123",
+    "dateJoined": "2025-02-14T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["goddo"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-14T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Rupom",
+      "lastName": "Sen",
+      "gender": "male",
+      "dateOfBirth": "1992-05-17T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "388697"
+    }
+  },
+  {
+    "upID": "up_7279f78fb51b",
+    "email": "sumon@gmail.com",
+    "phone": "+16314567905",
+    "password": "sumon@123",
+    "dateJoined": "2025-02-15T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-15T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-15T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Sumon",
+      "lastName": "Islam",
+      "gender": "male",
+      "dateOfBirth": "1987-09-12T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "5438DC"
+    }
+  },
+  {
+    "upID": "up_8db6b17231e2",
+    "email": "sharmin@gmail.com",
+    "phone": "+16314567906",
+    "password": "sharmin@123",
+    "dateJoined": "2025-02-16T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["uponnash"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-16T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Sharmin",
+      "lastName": "Rima",
+      "gender": "female",
+      "dateOfBirth": "1999-11-08T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0BC9CD"
+    }
+  },
+  {
+    "upID": "up_f6a7fbe95a3a",
+    "email": "jashim@gmail.com",
+    "phone": "+16314567907",
+    "password": "jashim@123",
+    "dateJoined": "2025-02-17T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["artOCulture", "ebook", "kobita", "boiPotro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-17T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-17T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Jashim",
+      "lastName": "Chowdhury",
+      "gender": "male",
+      "dateOfBirth": "1990-06-24T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "170312"
+    }
+  },
+  {
+    "upID": "up_9dec9723452c",
+    "email": "meem@gmail.com",
+    "phone": "+16314567908",
+    "password": "meem@123",
+    "dateJoined": "2025-02-18T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-18T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Meem",
+      "lastName": "Binte",
+      "gender": "female",
+      "dateOfBirth": "1993-01-22T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0B5351"
+    }
+  },
+  {
+    "upID": "up_c642d8285b29",
+    "email": "rubel@gmail.com",
+    "phone": "+16314567909",
+    "password": "rubel@123",
+    "dateJoined": "2025-02-19T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["shongit"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-19T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-19T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Rubel",
+      "lastName": "Islam",
+      "gender": "male",
+      "dateOfBirth": "1997-02-10T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "7EA0B7"
+    }
+  },
+  {
+    "upID": "up_f1af2d90214f",
+    "email": "rini@gmail.com",
+    "phone": "+16314567910",
+    "password": "rini@123",
+    "dateJoined": "2025-02-20T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["cholochitro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-20T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Rini",
+      "lastName": "Nahar",
+      "gender": "female",
+      "dateOfBirth": "1995-05-30T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "388697"
+    }
+  },
+  {
+    "upID": "up_d5c88605141f",
+    "email": "tareq@gmail.com",
+    "phone": "+16314567911",
+    "password": "tareq@123",
+    "dateJoined": "2025-02-21T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-21T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-21T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Tareq",
+      "lastName": "Amin",
+      "gender": "male",
+      "dateOfBirth": "1991-06-17T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "5438DC"
+    }
+  },
+  {
+    "upID": "up_31b3b3feb2a4",
+    "email": "sadia@gmail.com",
+    "phone": "+16314567912",
+    "password": "sadia@123",
+    "dateJoined": "2025-02-22T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["bigganOProjukti"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-22T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Sadia",
+      "lastName": "Afroz",
+      "gender": "female",
+      "dateOfBirth": "1993-08-29T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0BC9CD"
+    }
+  },
+  {
+    "upID": "up_d54f6b164132",
+    "email": "zahid@gmail.com",
+    "phone": "+16314567913",
+    "password": "zahid@123",
+    "dateJoined": "2025-02-23T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["boiPotro"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-23T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-23T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Zahid",
+      "lastName": "Mahmud",
+      "gender": "male",
+      "dateOfBirth": "1994-03-18T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "170312"
+    }
+  },
+  {
+    "upID": "up_71b3e5c7091c",
+    "email": "nabila@gmail.com",
+    "phone": "+16314567914",
+    "password": "nabila@123",
+    "dateJoined": "2025-02-24T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-24T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Nabila",
+      "lastName": "Tanjin",
+      "gender": "female",
+      "dateOfBirth": "1997-01-07T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "0B5351"
+    }
+  },
+  {
+    "upID": "up_e5f0cdb9b829",
+    "email": "kamrul@gmail.com",
+    "phone": "+16314567915",
+    "password": "kamrul@123",
+    "dateJoined": "2025-02-25T09:00:00.000Z",
+    "employeeType": "da",
+    "isAdmin": false,
+    "department": ["goddo"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-25T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-25T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Kamrul",
+      "lastName": "Hasan",
+      "gender": "male",
+      "dateOfBirth": "1985-12-11T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "7EA0B7"
+    }
+  },
+  {
+    "upID": "up_a507c34a81e2",
+    "email": "rabeya@gmail.com",
+    "phone": "+16314567916",
+    "password": "rabeya@123",
+    "dateJoined": "2025-02-26T09:00:00.000Z",
+    "employeeType": "na",
+    "isAdmin": false,
+    "department": ["ebook"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-26T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": null,
+    "employeeBio": {
+      "firstName": "Rabeya",
+      "lastName": "Khatun",
+      "gender": "female",
+      "dateOfBirth": "1990-10-25T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "388697"
+    }
+  },
+  {
+    "upID": "up_013c20251455",
+    "email": "sufia@gmail.com",
+    "phone": "+16314567917",
+    "password": "sufia@123",
+    "dateJoined": "2025-02-27T09:00:00.000Z",
+    "employeeType": "ra",
+    "isAdmin": false,
+    "department": ["*"],
+    "deniedDepartment": [],
+    "temporaryApproval": "false",
+    "accountCreated": "2025-02-27T09:00:00.000Z",
+    "isActiveAccount": true,
+    "lastLogin": "2025-02-27T09:00:00.000Z",
+    "employeeBio": {
+      "firstName": "Sufia",
+      "lastName": "Akter",
+      "gender": "female",
+      "dateOfBirth": "1996-09-12T00:00:00.000Z"
+    },
+    "employeePreference": {
+      "profilePicture": "1970807dbb7-bfg0qy.png",
+      "themeColor": "5438DC"
+    }
+  }
+]
