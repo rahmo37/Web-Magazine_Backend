@@ -632,6 +632,7 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
     // Check the section data
     if (
       !structureChecker([], Object.keys(sectionData), [
+        "upID",
         "sectionArticle",
         "sectionImages",
       ])
@@ -658,22 +659,28 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
 
     // Get the tracker
     let tracker = null;
-    if (req.tracker) {
-      tracker = { ...req.tracker };
-    } else {
-      if (!goddo.metadata.upID) {
-        return next(
-          getErrorObj(
-            `Inconsistencies detected: no upID found for this content!`,
-            400
-          )
-        );
-      }
+
+    // If sectionImages not provided we get the tracker manually
+    if (!sectionData.sectionImages) {
       tracker = await UploadTracker.getTracker(goddo.metadata.upID);
+    }
+    // If sectionImages is provided but tracker is not attached
+    else if (sectionData.sectionImages && !req.tracker) {
+      req.body.upID = goddo.metadata.upID;
+      return next(
+        getErrorObj(
+          `upID must be provided if updating images or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
     }
 
     // If no tracker
-    if (!tracker) {
+    if (!tracker || typeof tracker !== "object") {
       return next(
         getErrorObj(
           `Inconsistencies detected: no tracker was found for this content!`,
@@ -682,12 +689,12 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
       );
     }
 
-    // Create a set for fast look-up, filter out the articleCover image
-    let sectionFilesInTracker = new Set(
-      tracker.fileNames.filter(
-        (eachFile) => eachFile !== goddo.article.articleCover
-      )
-    );
+    // Create a set for fast look-up
+    // Images in the tracker.filenames
+    let imagesInTracker = new Set(tracker.fileNames);
+
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
 
     // Retrieve the current section
     const currentSection = goddo.article.mainContent.find(
@@ -702,27 +709,16 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
     }
 
     // Check if the section images are not provided, however there was images uploaded.
-    // Reconcile the upload tracker with current section images
-    if (!sectionData.sectionImages) {
-      // Flatten all the section images
-      const allSectionImages = goddo.article.mainContent
-        .map((eachSection) => eachSection.sectionImages)
-        .flat(Infinity);
-
-      // Then check the images integrity
-      if (!structureChecker(allSectionImages, [...sectionFilesInTracker])) {
-        return next(
-          getErrorObj(
-            `Images were uploaded, but no sectionImages provided`,
-            400
-          )
-        );
-      }
-    } else {
+    if (!sectionData.sectionImages && imagesStaged.size > 0) {
+      req.body.upID = goddo.metadata.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no sectionImages provided`, 400)
+      );
+    } else if (sectionData.sectionImages) {
       // Check if every image in the provided sectionImages array exists inside the tracker
       if (
-        !sectionData.sectionImages.every((file) =>
-          sectionFilesInTracker.has(file)
+        !sectionData.sectionImages.every(
+          (file) => imagesInTracker.has(file) || imagesStaged.has(file)
         )
       ) {
         return next(
@@ -750,31 +746,37 @@ manageGoddo.updateAGoddoSection = async function (req, res, next) {
       sectionData
     );
 
-    // Send the response with the updated section data
-    sendRequest({
-      res,
-      statusCode: 200,
-      message: "Updated section successfully",
-      data: updatedSection,
-    });
+    if (updatedSection) {
+      if (imagesStaged.size > 0) {
+        // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+        await UploadTracker.mergeAndEmptyStagedFileNames(goddo.metadata.upID);
+      }
 
-    if (imagesToDelete.length > 0) {
-      setImmediate(async () => {
-        try {
-          // Delete any images and trackers
-          const result = await rollbackOnUploadFailure(
-            goddo.metadata.upID,
-            imagesToDelete,
-            false
-          );
-          console.log(result);
-        } catch (error) {
-          console.error(
-            "Image and tracker deletion failed",
-            error
-          );
-        }
+      // Send the response with the updated section data
+      sendRequest({
+        res,
+        statusCode: 200,
+        message: "Updated section successfully",
+        data: updatedSection,
       });
+
+      if (imagesToDelete.length > 0) {
+        setImmediate(async () => {
+          try {
+            // Delete any images and trackers
+            const result = await rollbackOnUploadFailure(
+              goddo.metadata.upID,
+              imagesToDelete,
+              false
+            );
+            console.log(result);
+          } catch (error) {
+            console.error("Image and tracker deletion failed", error);
+          }
+        });
+      }
+    } else {
+      return next(getErrorObj(`Update operation failed`, 500));
     }
   } catch (error) {
     next(error);
@@ -978,10 +980,7 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
           );
           console.log(result);
         } catch (error) {
-          console.error(
-            "Image and tracker deletion failed",
-            error
-          );
+          console.error("Image and tracker deletion failed", error);
         }
       });
     }
@@ -1008,20 +1007,22 @@ manageGoddo.deleteAGoddoSection = async function (req, res, next) {
       secID
     );
 
-    // Delete the section images from s3
-    const imageDeletionResult = await rollbackOnUploadFailure(
-      sectionDeletionResult.upID,
-      sectionDeletionResult.deletedSection.sectionImages,
-      false
-    );
-    console.log(imageDeletionResult);
-
     // Send the response with the deleted section data
     sendRequest({
       res,
       statusCode: 200,
       message: "Deleted section successfully",
       data: sectionDeletionResult.deletedSection,
+    });
+
+    setImmediate(async () => {
+      // Delete the section images from s3
+      const imageDeletionResult = await rollbackOnUploadFailure(
+        sectionDeletionResult.upID,
+        sectionDeletionResult.deletedSection.sectionImages,
+        false
+      );
+      console.log(imageDeletionResult);
     });
   } catch (error) {
     next(error);
@@ -1048,14 +1049,18 @@ manageGoddo.deleteAGoddo = async function (req, res, next) {
     });
 
     if (deletedGoddo && isDeletedLink) {
-      const result = await rollbackOnUploadFailure(deletedGoddo.metadata.upID);
-      console.log(result);
-
       // Send the response with the updated article data
       sendRequest({
         res,
         statusCode: 200,
         message: "Goddo deleted successfully",
+      });
+
+      setImmediate(async () => {
+        const result = await rollbackOnUploadFailure(
+          deletedGoddo.metadata.upID
+        );
+        console.log(result);
       });
     } else {
       throw getErrorObj();

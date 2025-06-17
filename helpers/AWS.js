@@ -35,11 +35,19 @@ AwsFunctions.uploadAnImage = async function (file) {
   return fileName;
 };
 
-AwsFunctions.uploadMany = async function (fileNames) {
+AwsFunctions.uploadMany = async function (files) {
+  if (!files || files.length === 0) return [];
   const uploadedNames = await Promise.all(
-    fileNames.map(AwsFunctions.uploadAnImage)
+    files.map(async (file) => {
+      try {
+        return await AwsFunctions.uploadAnImage(file);
+      } catch (err) {
+        return null;
+      }
+    })
   );
-  return uploadedNames;
+  // Filter out failed uploads (null)
+  return uploadedNames.filter(Boolean);
 };
 
 // A filenames Array will be provided and corresponding files will be delete in s3

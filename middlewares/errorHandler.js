@@ -8,24 +8,30 @@ module.exports = async (err, req, res, next) => {
     } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
       message = "Too many files. Max is 5 per batch.";
     }
+    err.message = message;
+  }
 
-    // Try to parse upID and roll back only if we actually have one
+  // Async iffy function that rollback image uploads
+  (async () => {
     try {
-      const meta = JSON.parse(req.body.meta || "{}");
-      const upID = meta.upID;
+      let meta = {};
+      let upID = null;
+      if (req.body.meta) {
+        meta =
+          typeof req.body.meta === "string"
+            ? JSON.parse(req.body.meta)
+            : req.body.meta;
+      }
+      upID = meta.upID ? meta.upID : req.body.upID ? req.body.upID : null;
+
       if (upID) {
-        const result = await rollbackOnUploadFailure(upID); // fileNames defaults to null
+        const result = await rollbackOnUploadFailure(upID, null, null, req);
         console.log("Rollback result:", result);
-      } else {
-        console.log("No upID found. Could not perform rollback");
       }
     } catch (e) {
-      console.warn("Metadata parse skipped during Multer error:", e.message);
+      console.warn("Rollback error: ", e.message);
     }
-
-    console.error(message);
-    return res.status(400).json({ error: message });
-  }
+  })();
 
   // — standard handler for all other errors —
   console.error(err.message);

@@ -12,6 +12,7 @@ const UploadTrackerSchema = new Schema(
   {
     upID: { type: String, unique: true },
     fileNames: { type: [String], default: [] },
+    stagedFileNames: { type: [String], default: [] },
   },
   { timestamps: true, collection: "uploadTracker" }
 );
@@ -37,8 +38,8 @@ UploadTrackerSchema.statics.getTracker = async function (upID) {
 };
 
 // Adds new files to the tracker
-UploadTrackerSchema.methods.addFiles = async function (newFiles) {
-  // if just a string, wrap it in an array or if falsy, use empty array
+UploadTrackerSchema.methods.addFiles = async function (newFiles, needStaging) {
+  // If just a string, wrap it in an array or if falsy, use empty array
   const filesArray = Array.isArray(newFiles)
     ? newFiles
     : newFiles
@@ -49,8 +50,12 @@ UploadTrackerSchema.methods.addFiles = async function (newFiles) {
     throw new Error("addFiles expects a filename or an array of filenames");
   }
 
-  // Append all items
-  this.fileNames.push(...filesArray);
+  // Append all items. If staging is needed, we add them into the stagedNames array
+  if (needStaging) {
+    this.stagedFileNames.push(...filesArray);
+  } else {
+    this.fileNames.push(...filesArray);
+  }
 
   // Optional: deduplicate
   // this.fileNames = [...new Set(this.fileNames)];
@@ -125,6 +130,55 @@ UploadTrackerSchema.statics.replaceFilesInTracker = async function (
   tracker.fileNames = filesArr;
   return session ? await tracker.save({ session }) : await tracker.save();
 };
+
+UploadTrackerSchema.statics.mergeAndEmptyStagedFileNames = async function (
+  upID
+) {
+  // 1. Get the tracker
+  let tracker = await getTracker(upID);
+
+  // 2. Merge staged file names into fileNames (if not already present)
+  tracker.fileNames.push(...tracker.stagedFileNames);
+
+  // 3. Optional: deduplicate fileNames
+  tracker.fileNames = [...new Set(tracker.fileNames)];
+
+  // 4. Empty the stagedFileNames array
+  tracker.stagedFileNames = [];
+
+  // 5. Save and return the tracker
+  await tracker.save();
+  return tracker;
+};
+
+UploadTrackerSchema.statics.emptyStagedFileNames = async function (upID) {
+  let tracker = await getTracker(upID);
+
+  //  Empty the tracker.stagedFileNames
+  tracker.stagedFileNames = [];
+
+  // 5. Save and return the tracker
+  await tracker.save();
+  return tracker;
+};
+
+// helper function
+async function getTracker(upID) {
+  if (typeof upID !== "string" || !upID.trim()) {
+    throw getErrorObj(
+      "A valid upID must be provided to merge staged files",
+      400
+    );
+  }
+
+  // 1. Find the tracker
+  const tracker = await UploadTracker.findOne({ upID });
+  if (!tracker) {
+    throw getErrorObj("No tracker found with the given upID", 404);
+  }
+
+  return tracker;
+}
 
 // Creating Model
 const UploadTracker = mongoose.model(

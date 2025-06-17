@@ -62,10 +62,16 @@ manageGoddoRouter
   .patch(
     // Check if the logged in user has modification permission
     modificationAccessVerify("godID", department), //! Please recheck this middleware may have bugs
+    // If any images in the request, multer injects them in the req.files
+    multerImageInjection,
+    // parse the metadata of the images,
+    parseImageMeta,
     // Verify if the body is invalid
     verifyReqBody,
     // Validate the request body fields
     validationHandler(),
+    // Upload the images in batch
+    uploadBatchedImages,
     // Update a goddo section inside the main content
     manageGoddoController.updateAGoddoSection,
     // Update metadata of a goddo

@@ -15,7 +15,6 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
   if (!req.files || req.files.length === 0) {
     // If an upID is found in the request, we try to retrieve the existing tracker. If no tracker is found, we create a new one and attach it to the req object.
     if (req.body.upID) {
-      
       // Save the upID
       let upID = req.body.upID;
 
@@ -68,10 +67,12 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
         ? "A tracker already exists with the provided upID"
         : "BatchNumber is more than 1 however no tracker found. Please provide a correct upID with the request";
       return next(getErrorObj(msg, 400));
-    } 
+    }
     // If the request is patch or put, but their is no tracker
-    else if(!tracker && req.method !== "POST") {
-      return next(getErrorObj("Received a PATCH/PUT request, but no tracker found", 400));
+    else if (!tracker && req.method !== "POST") {
+      return next(
+        getErrorObj("Received a PATCH/PUT request, but no tracker found", 400)
+      );
     }
 
     //  Destructure the image files
@@ -101,8 +102,17 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
       tracker = await UploadTracker.createTracker(imageMetadata.upID);
     }
 
-    // Updated the tracker
-    const updatedTracker = await tracker.addFiles(fileNamesInCurrentBatch);
+    // If fileNames needs to be staged we use this variable
+    let needStaging = false;
+    if (req.method === "PATCH" || req.method === "PUT") {
+      needStaging = true;
+    }
+
+    // Update the tracker
+    const updatedTracker = await tracker.addFiles(
+      fileNamesInCurrentBatch,
+      needStaging
+    );
 
     // Send the updatedTracker
     return sendRequest({
@@ -114,18 +124,18 @@ imageOperations.uploadBatchedImages = async function (req, res, next) {
   } catch (error) {
     console.error("Batch upload error:", error);
 
-    try {
-      if (tracker) {
-        const result = await rollbackOnUploadFailure(tracker.upID);
-        console.log("Rollback successful:", result);
-      } else {
-        console.log("No tracker found. Nothing to rollback.");
-      }
-    } catch (rollbackError) {
-      // Explicitly log rollback error for easier debugging.
-      console.error("Rollback error:", rollbackError);
-      return next(rollbackError);
-    }
+    // try {
+    //   if (tracker) {
+    //     const result = await rollbackOnUploadFailure(tracker.upID);
+    //     console.log("Rollback successful:", result);
+    //   } else {
+    //     console.log("No tracker found. Nothing to rollback.");
+    //   }
+    // } catch (rollbackError) {
+    //   // Explicitly log rollback error for easier debugging.
+    //   console.error("Rollback error:", rollbackError);
+    //   return next(rollbackError);
+    // }
     return next(error);
   }
 };

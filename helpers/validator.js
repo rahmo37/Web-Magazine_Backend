@@ -737,7 +737,7 @@ validator.originalWritingDate = function (originalWritingDate) {
 validator.sectionImages = function (images) {
   const errors = [];
 
-  if (!Array.isArray(images) || images.length === 0) {
+  if (!Array.isArray(images)) {
     errors.push("sectionImages must be a non-empty array of image filenames.");
   } else {
     images.forEach((img, idx) => {

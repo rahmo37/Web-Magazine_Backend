@@ -24,140 +24,148 @@ const genericMessage = "rollback failed";
 module.exports = async function rollbackOnUploadFailure(
   upID,
   passedInFileNames = null,
-  deleteTracker = null
+  deleteTracker = null,
+  req = null
 ) {
-  // ---------------- Parameter Validation ----------------
+  // Validate parameters
   assertValidPassedInFileNames(passedInFileNames);
   assertValidUpID(upID);
   assertDeleteTracker(deleteTracker);
 
-  // Determines whether to delete the tracker as well
-  let isDeleteTracker = deleteTracker;
-
-  // If full tracker deletion is requested, ignore any passedInFileNames to avoid partial deletion
-  if (deleteTracker) {
-    passedInFileNames = null;
-  }
-
-  // The filenames to be rolled back (from tracker or passed in)
-  let fileNames = [];
-
-  // Message for reporting the result
-  let message = "";
-
-  // Retrieve tracker from DB
+  // Fetch tracker
   const tracker = await UploadTracker.getTracker(upID);
 
-  // ----------------- Tracker/File Logic -----------------
-  if (!passedInFileNames) {
-    // If no filenames provided, check for tracker
-    if (!tracker) {
-      return "No tracker found. Nothing to rollback.";
-    }
-    fileNames = [...tracker.fileNames];
+  // If no tracker found and no files are passed-in, we return from the function
+  if (!tracker && !passedInFileNames) {
+    return "No tracker found. Nothing to rollback.";
+  }
 
-    // If caller didn't specify deleteTracker and no files given, default to delete tracker
-    if (deleteTracker === null) {
-      isDeleteTracker = true;
+  // Determine filenames to delete and tracker action based on request method
+  const method = req?.method;
+
+  // Deleted fileNames will be saved here
+  let fileNames = [];
+
+  // Variable for appropriate message
+  let actionMessage = "";
+
+  //  If the method is PATCH or PUT we look-into the staged files
+  if (method === "PATCH" || method === "PUT") {
+    // On PATCH or PUT: delete files from stagedFileNames
+    if (!tracker || tracker.stagedFileNames.length === 0) {
+      return "No staged files to delete.";
+    }
+
+    // Retrieve the staged fileNames
+    fileNames = [...tracker.stagedFileNames];
+
+
+    try {
+      // Delete from s3
+      const s3DeleteResult = await assignJob(
+        findModule("AWS.js"),
+        "deleteMany",
+        [fileNames]
+      );
+
+      // Empty the staged file names
+      await UploadTracker.emptyStagedFileNames(tracker.upID);
+
+      // Prepare message
+      actionMessage = `${s3DeleteResult} staged file(s) deleted from S3 and tracker.`;
+    } catch (error) {
+      throw getErrorObj(`Rollback failed: ${error.message}`, 500);
+    }
+  } 
+  // If the method is DELETE, POST or no method is provided
+  else if (method === "DELETE" || method === "POST" || !method) {
+    // Determine if we need to delete the tracker
+    let isDeleteTracker = deleteTracker;
+
+    // If tracker is marked to be deleted, we set passedInFileNames parameter to null
+    if (deleteTracker) {
+      passedInFileNames = null;
+    }
+
+    // If no passed-in file names
+    if (!passedInFileNames) {
+
+      // We gather the fileNames from the tracker, or set the names to empty array
+      fileNames = tracker ? [...tracker.fileNames] : [];
+
+      // If tracker deletion is set to null here, but no passed-in file names are provided, we assume that we need to delete the tracker
+      if (deleteTracker === null) isDeleteTracker = true;
+    } else {
+      if (!tracker) {
+        throw getErrorObj(
+          getErrorMessage(
+            `Inconsistency: Tracker not found for upID '${upID}' but filenames provided.`
+          )
+        );
+      }
+      fileNames = [...passedInFileNames];
+      if (deleteTracker === null) isDeleteTracker = false;
+    }
+
+    try {
+      const s3DeleteResult = await assignJob(
+        findModule("AWS.js"),
+        "deleteMany",
+        [fileNames]
+      );
+
+      if (isDeleteTracker) {
+        const dbDeleteResult = await UploadTracker.deleteTrackerByUpID(upID);
+        actionMessage = dbDeleteResult
+          ? `${s3DeleteResult} files deleted from S3, and the tracker is deleted.`
+          : "S3 files deleted, but failed to delete tracker. Follow-up required!";
+      } else {
+        const deletedCount = await UploadTracker.removeFilesFromTracker(
+          upID,
+          fileNames
+        );
+        actionMessage = `${s3DeleteResult} files deleted from S3, ${deletedCount} files deleted from tracker.`;
+      }
+    } catch (error) {
+      throw getErrorObj(`Rollback failed: ${error.message}`, 500);
     }
   } else {
-    // If filenames provided but no tracker exists, it's a logical error (inconsistency)
-    if (!tracker) {
-      throw getErrorObj(
-        getErrorMessage(
-          `Inconsistency detected: Tracker for upID '${upID}' not found, but filenames provided. Files may exist in S3 without tracker records.`
-        )
-      );
-    }
-    fileNames = [...passedInFileNames];
-
-    // If caller didn't specify deleteTracker and files given, default to partial removal
-    if (deleteTracker === null) {
-      isDeleteTracker = false;
-    }
+    return "Invalid request method. No action taken.";
   }
 
-  // --------------- Main Rollback Operations ---------------
-  try {
-    // Delete files from S3 using a worker thread for efficiency
-    const s3DeleteResult = await assignJob(findModule("AWS.js"), "deleteMany", [
-      fileNames,
-    ]);
-
-    if (isDeleteTracker) {
-      // Delete the full tracker and report how many files were tracked
-      const dbDeleteResult = await UploadTracker.deleteTrackerByUpID(upID);
-
-      if (dbDeleteResult) {
-        message = `and ${dbDeleteResult.fileNames.length} files deleted from DB. Tracker also deleted.`;
-      } else {
-        message =
-          "However, failed to delete tracker and its files from DB. Immediate follow-up required!";
-      }
-    } else {
-      // Remove only specific files from the tracker
-      const deletedCount = await UploadTracker.removeFilesFromTracker(
-        upID,
-        fileNames
-      );
-      message = `and ${deletedCount} files deleted from tracker. Verify counts match.`;
-    }
-
-
-    // Return a summary of what happened
-    return `${String(
-      s3DeleteResult
-    )} file(s) deleted from S3 ${message} NOTE: If default user or placeholder file name is provided. They will not be deleted from s3.`;
-  } catch (error) {
-    // Catch any unexpected errors and wrap in custom error object
-    throw getErrorObj(`Rollback operation failed: ${error.message}`, 500);
-  }
+  return `${actionMessage} NOTE: Default user or placeholder files will not be deleted from S3.`;
 };
 
-//* Helper Functions
-/**
- * Validates passedInFileNames:
- * - must be null, or an array of strings, or empty array
- */
+// Helper validation functions
 function assertValidPassedInFileNames(passedInFileNames) {
   if (passedInFileNames !== null && !Array.isArray(passedInFileNames)) {
     throw getErrorObj(
-      getErrorMessage(
-        "passedInFileNames, if provided, must be an array of strings or null"
-      )
+      getErrorMessage("passedInFileNames must be an array of strings or null")
     );
   }
   if (
     Array.isArray(passedInFileNames) &&
-    passedInFileNames.some((each) => typeof each !== "string")
+    passedInFileNames.some((f) => typeof f !== "string")
   ) {
     throw getErrorObj(
-      getErrorMessage("passedInFileNames must only contain string file names")
+      getErrorMessage("passedInFileNames must contain only strings")
     );
   }
 }
 
-/**
- * Validates upID: must be a non-empty string
- */
 function assertValidUpID(upID) {
   if (typeof upID !== "string" || !upID.trim()) {
     throw getErrorObj(getErrorMessage("upID must be a non-empty string"));
   }
 }
 
-/**
- * Utility to format error messages
- */
-function getErrorMessage(message) {
-  return `${message}. ${genericMessage}`;
-}
-
-/**
- * Validates deleteTracker: must be true, false, or null
- */
 function assertDeleteTracker(value) {
-  if (value !== null && value !== true && value !== false) {
+  if (![null, true, false].includes(value)) {
     throw new Error("deleteTracker must be either null, true, or false.");
   }
 }
+
+function getErrorMessage(msg) {
+  return `${msg}. Rollback failed.`;
+}
+
