@@ -928,7 +928,7 @@ manageGoddo.updateAGoddoArticledata = async function (req, res, next) {
     if (!articleData.articleCover && imagesStaged.size > 0) {
       req.body.upID = goddo.metadata.upID;
       return next(
-        getErrorObj(`Images were uploaded, but no sectionImages provided`, 400)
+        getErrorObj(`Images were uploaded, but no articleCover provided`, 400)
       );
     } else if (
       articleData.articleCover &&

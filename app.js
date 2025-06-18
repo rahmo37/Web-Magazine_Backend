@@ -50,12 +50,6 @@ const {
 // Other Imports
 const { sendRequest } = require("./helpers/sendRequest");
 
-// ? Test Image Upload Imports
-// const {
-//   uploadBatchedImages,
-// } = require("./controllers/imageOperationsController");
-// const multerImageInjection = require("./middlewares/multerImageInjection");
-
 // ---------------------------------Project variables---------------------------------
 const PORT = process.env.PORT || 8000;
 
@@ -142,16 +136,6 @@ app.use(
 //* Only employees are allowed beyond this point and Requests must have JWT token
 app.use(authenticateToken, roleVerify.isEmployee);
 
-// ? Image Upload Test
-// app.post(
-//   "/api/upload",
-//   multerImageInjection,
-//   parseImageMeta,
-//   uploadBatchedImages,
-//   (req, res, next) => {
-//     res.status(200).json({ message: "Upload Done" });
-//   }
-// );
 
 // Employee Management Route
 app.use("/api/manage/employee", manageEmployeeRouter);

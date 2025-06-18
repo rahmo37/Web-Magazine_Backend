@@ -3,6 +3,7 @@
 // Importing Modules
 const jwt = require("jsonwebtoken");
 const jwtConfig = require("../config/jwtConfig");
+const { dateAndTime } = require("../helpers/dateAndTime");
 
 // Middleware function that checks for JWT from cookies first, then headers
 const authenticateToken = (req, res, next) => {
@@ -33,6 +34,17 @@ const authenticateToken = (req, res, next) => {
       err.message = "Invalid token and signature";
       return next(err);
     }
+
+    // Reformat the time when the token is provided
+    user.iat = dateAndTime.convertToLocalFormatted(
+      new Date(user.iat * 1000)
+    ).time;
+
+
+    // Reformat the time when the token is expired
+    user.exp = dateAndTime.convertToLocalFormatted(
+      new Date(user.exp * 1000)
+    ).time;
 
     // Attach user info to req object for next middleware
     req.user = user;

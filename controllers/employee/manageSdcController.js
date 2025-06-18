@@ -202,10 +202,15 @@ manageSdc.updateAnSdc = async function (req, res, next) {
     const { sdcID } = req.params;
 
     // Copy the body
-    const body = { ...req.body };
+    const body = flattenObject({ ...req.body });
 
     // Optional Fields
-    const optionalFields = ["creatorName", "creatorBio", "creatorImage"];
+    const optionalFields = [
+      "upID",
+      "creatorName",
+      "creatorBio",
+      "creatorImage",
+    ];
 
     // Extract the keys from provided info
     const providedKeys = Object.keys(body);
@@ -221,6 +226,9 @@ manageSdc.updateAnSdc = async function (req, res, next) {
       );
     }
 
+    // This will contain the images that needs to be delete
+    let imagesToDelete = [];
+
     // Get the sdc
     const sdc = await SecondDegreeCreator.getSdcByID(sdcID);
 
@@ -229,48 +237,59 @@ manageSdc.updateAnSdc = async function (req, res, next) {
       return next(getErrorObj(`No SDC found with provided ID.`, 400));
     }
 
-    // If tracker is attached we retrieve the tracker, otherwise we get the tracker using the sdc.upID
-    const tracker =
-      req.tracker ?? (sdc.upID && (await UploadTracker.getTracker(sdc.upID)));
-
-    // If no tracker is found we return error
-    if (!tracker) {
-      return next(getErrorObj(`No upload tracker found for this sdc!`, 400));
+    // If the creatorImage is not provided we get the tracker manually
+    if (!body.creatorImage) {
+      tracker = await UploadTracker.getTracker(sdc.upID);
+    } else if (body.creatorImage && !req.tracker) {
+      req.body.upID = sdc.upID;
+      return next(
+        getErrorObj(
+          `upID must be provided if updating images, or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
     }
 
-    // This will contain the images that needs to be delete
-    let imagesToDelete = [];
+    // If no tracker
+    if (!tracker || typeof tracker !== "object") {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this sdc!`,
+          400
+        )
+      );
+    }
 
-    // Tracker files becomes a set from array for faster look-up
-    const filesInTrackerSet = new Set(tracker.fileNames);
+    // Create a set for fast look-up
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
 
     // If the creator image is not provided for update, we check if there are any files uploaded
-    if (!body.creatorImage) {
-      const wrappedCreatorImage =
-        sdc.creatorImage !== process.env.DEFAULT_USER_FILENAME
-          ? [sdc.creatorImage]
-          : [];
-      // Then check the current images integrity
-      if (!structureChecker(wrappedCreatorImage, [...filesInTrackerSet])) {
-        return next(
-          getErrorObj("Images were uploaded, but no creatorImage provided", 400)
-        );
-      }
-    } else {
-      // See if the provided creator image is uploaded and in the filesTracker
-      if (!filesInTrackerSet.has(body.creatorImage)) {
+    if (!body.creatorImage && imagesStaged.size > 0) {
+      req.body.upID = sdc.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no creatorImage provided`, 400)
+      );
+    } else if (body.creatorImage && body.creatorImage !== sdc.creatorImage) {
+      //  See if the provided creator image is uploaded and in the filesTracker
+      if (!imagesStaged.has(body.creatorImage)) {
         return next(
           getErrorObj(
-            `Provided creatorImage filename not found in tracker.`,
+            `Provided filename for creatorImage, is not found in the tracker!`,
             400
           )
         );
       }
 
-      // Grab the current image to delete
-      if (sdc.creatorImage !== process.env.DEFAULT_USER_FILENAME) {
-        imagesToDelete.push(sdc.creatorImage);
-      }
+      // Filter out the images need to be deleted
+      imagesToDelete =
+        sdc.creatorImage !== process.env.DEFAULT_USER_FILENAME
+          ? [sdc.creatorImage]
+          : [];
     }
 
     // Now update the Sdc
@@ -281,11 +300,16 @@ manageSdc.updateAnSdc = async function (req, res, next) {
       return next(getErrorObj(`SDC update operation failed.`, 500));
     }
 
-    // Send the request and attach the SDC
+    if (imagesStaged.size > 0) {
+      // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+      await UploadTracker.mergeAndEmptyStagedFileNames(sdc.upID);
+    }
+
+    // Send the request
     sendRequest({
       res,
       statusCode: 200,
-      message: "Successfully Updated Sdc",
+      message: "Successfully updated SDC.",
       data: updatedSdc,
     });
 

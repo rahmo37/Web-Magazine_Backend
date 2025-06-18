@@ -46,8 +46,17 @@ manageEmployeeRouter
   .get(manageEmployeeController.getAnEmployee)
   // Update an employee
   .patch(
+    // If any images in the request, multer injects them in the req.files
+    multerImageInjection,
+    // parse the metadata of the images,
+    parseImageMeta,
+    // Verify the request body
     verifyReqBody,
+    // Validate the posted fields
     validationHandler(),
+    // Upload the images in batch
+    uploadBatchedImages,
+    // Update an employee
     manageEmployeeController.updateAnEmployee
   )
   // Delete an employee

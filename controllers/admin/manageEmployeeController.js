@@ -104,7 +104,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
       );
     }
 
-    // The tracker instance for this FDC
+    // The tracker instance for this employee
     const tracker = { ...req.tracker };
 
     // Retrieve the files in tracker
@@ -323,58 +323,74 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       );
     }
 
-    // If tracker is attached we retrieve the tracker, otherwise we get the tracker using the employee.upID
-    const tracker =
-      req.tracker ??
-      (employee.upID && (await UploadTracker.getTracker(employee.upID)));
-
-    // If no tracker is found we return error
-    if (!tracker) {
-      return next(
-        getErrorObj(`No upload tracker found for this employee!`, 400)
-      );
-    }
-
     // This will contain the images that needs to be delete
     let imagesToDelete = [];
 
-    // Tracker files becomes a set from array for faster look-up
-    const filesInTrackerSet = new Set(tracker.fileNames);
+    // Get the tracker
+    let tracker = null;
+
+    // ProfilePicture provided to be updated if exists
+    let providedProfilePicture = flattenedUpdateInfo?.profilePicture;
+
+    // Current ProfilePicture in the employee
+    let currentProfilePicture = employee?.employeePreferences?.profilePicture;
+
+    // If the creatorImage is not provided we get the tracker manually
+    if (!providedProfilePicture) {
+      tracker = await UploadTracker.getTracker(employee.upID);
+    } else if (providedProfilePicture && !req.tracker) {
+      req.body.upID = employee.upID;
+      return next(
+        getErrorObj(
+          `upID must be provided if updating images, or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
+    }
+
+    // If no tracker
+    if (!tracker || typeof tracker !== "object") {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this employee!`,
+          400
+        )
+      );
+    }
+
+    // Create a set for fast look-up
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
 
     // If the creator image is not provided for update, we check if there are any files uploaded
-    if (!flattenedUpdateInfo.profilePicture) {
-      const wrappedProfilePicture =
-        employee.employeePreferences.profilePicture !==
-        process.env.DEFAULT_USER_FILENAME
-          ? [employee.employeePreferences.profilePicture]
-          : [];
-      // Then check the current images integrity
-      if (!structureChecker(wrappedProfilePicture, [...filesInTrackerSet])) {
+    if (!providedProfilePicture && imagesStaged.size > 0) {
+      req.body.upID = employee.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no profilePicture provided`, 400)
+      );
+    } else if (
+      providedProfilePicture &&
+      providedProfilePicture !== currentProfilePicture
+    ) {
+      // See if the providedProfilePicture is staged
+      if (!imagesStaged.has(providedProfilePicture)) {
         return next(
           getErrorObj(
-            "Images were uploaded, but no profile picture provided",
-            400
-          )
-        );
-      }
-    } else {
-      // See if the provided creator image is uploaded and in the filesTracker
-      if (!filesInTrackerSet.has(flattenedUpdateInfo.profilePicture)) {
-        return next(
-          getErrorObj(
-            `Provided profilePicture filename not found in tracker.`,
+            `Provided filename for creatorImage, is not found in the tracker!`,
             400
           )
         );
       }
 
-      // Grab the current image to delete
-      if (
-        employee.employeePreferences.profilePicture !==
-        process.env.DEFAULT_USER_FILENAME
-      ) {
-        imagesToDelete.push(employee.employeePreferences.profilePicture);
-      }
+      // Filter out the images need to be deleted
+      imagesToDelete =
+        currentProfilePicture !== process.env.DEFAULT_USER_FILENAME
+          ? [currentProfilePicture]
+          : [];
     }
 
     // If the employee is an admin
@@ -418,11 +434,20 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       flattenedUpdateInfo
     );
 
+    if (!updatedEmployee) {
+      return next(getErrorObj(`Employee update operation failed.`, 500));
+    }
+
     // Convert Mongoose document to a plain object
     const updatedEmployeeObj = updatedEmployee.toObject();
 
     // Delete the password before sending
     delete updatedEmployeeObj.password;
+
+    if (imagesStaged.size > 0) {
+      // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+      await UploadTracker.mergeAndEmptyStagedFileNames(employee.upID);
+    }
 
     // Now sending the response with the new employee data
     sendRequest({

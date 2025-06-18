@@ -203,7 +203,12 @@ manageFdc.updateAnFdc = async function (req, res, next) {
     const body = flattenObject({ ...req.body });
 
     // Optional Fields
-    const optionalFields = ["creatorName", "creatorBio", "creatorImage"];
+    const optionalFields = [
+      "upID",
+      "creatorName",
+      "creatorBio",
+      "creatorImage",
+    ];
 
     // Extract the keys from provided info
     const providedKeys = Object.keys(body);
@@ -220,6 +225,9 @@ manageFdc.updateAnFdc = async function (req, res, next) {
       );
     }
 
+    // This will contain the images that needs to be delete
+    let imagesToDelete = [];
+
     // Get the fdc
     const fdc = await FirstDegreeCreator.getFdcByID(fdcID);
 
@@ -228,56 +236,73 @@ manageFdc.updateAnFdc = async function (req, res, next) {
       return next(getErrorObj(`No FDC found with provided ID.`, 400));
     }
 
-    // If tracker is attached we retrieve the tracker, otherwise we get the tracker using the fdc.upID
-    const tracker =
-      req.tracker ?? (fdc.upID && (await UploadTracker.getTracker(fdc.upID)));
+    // Get the tracker
+    let tracker = null;
 
-    // If no tracker is found we return error
-    if (!tracker) {
+    // If the creatorImage is not provided we get the tracker manually
+    if (!body.creatorImage) {
+      tracker = await UploadTracker.getTracker(fdc.upID);
+    } else if (body.creatorImage && !req.tracker) {
+      req.body.upID = fdc.upID;
       return next(
-        getErrorObj(`No upload tracker found for this fdc!`, 400)
+        getErrorObj(
+          `upID must be provided if updating images, or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
+    }
+
+    // If no tracker
+    if (!tracker || typeof tracker !== "object") {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this fdc!`,
+          400
+        )
       );
     }
 
-    // Tracker files becomes a set from array for faster look-up
-    const filesInTrackerSet = new Set(tracker.fileNames);
-
-    // This will contain the images that needs to be delete
-    let imagesToDelete = [];
+    // Create a set for fast look-up
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
 
     // If the creator image is not provided for update, we check if there are any files uploaded
-    if (!body.creatorImage) {
-      const wrappedCreatorImage =
-        fdc.creatorImage !== process.env.DEFAULT_USER_FILENAME
-          ? [fdc.creatorImage]
-          : [];
-      // Then check the current images integrity
-      if (!structureChecker(wrappedCreatorImage, [...filesInTrackerSet])) {
-        return next(
-          getErrorObj("Images were uploaded, but no creatorImage provided", 400)
-        );
-      }
-    } else {
+    if (!body.creatorImage && imagesStaged.size > 0) {
+      req.body.upID = fdc.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no creatorImage provided`, 400)
+      );
+    } else if (body.creatorImage && body.creatorImage !== fdc.creatorImage) {
       //  See if the provided creator image is uploaded and in the filesTracker
-      if (!filesInTrackerSet.has(body.creatorImage)) {
+      if (!imagesStaged.has(body.creatorImage)) {
         return next(
           getErrorObj(
-            `Provided creatorImage filename not found in tracker.`,
+            `Provided filename for creatorImage, is not found in the tracker!`,
             400
           )
         );
       }
 
-      // Grab the current image to delete
-      if (fdc.creatorImage !== process.env.DEFAULT_USER_FILENAME) {
-        imagesToDelete.push(fdc.creatorImage);
-      }
+      // Filter out the images need to be deleted
+      imagesToDelete =
+        fdc.creatorImage !== process.env.DEFAULT_USER_FILENAME
+          ? [fdc.creatorImage]
+          : [];
     }
 
     //  Now update the Fdc
     const updatedFdc = await FirstDegreeCreator.updateAnFdc(fdcID, body);
     if (!updatedFdc) {
       return next(getErrorObj(`FDC update operation failed.`, 500));
+    }
+
+    if (imagesStaged.size > 0) {
+      // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+      await UploadTracker.mergeAndEmptyStagedFileNames(fdc.upID);
     }
 
     //  Send the request
