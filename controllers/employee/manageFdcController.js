@@ -9,6 +9,9 @@ const flattenObject = require("../../helpers/flattenObject");
 const { default: mongoose } = require("mongoose");
 const { generateID } = require("../../helpers/generateID");
 const { manualMaintenance } = require("../../helpers/scheduledTasks");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
+const rollbackOnUploadFailure = require("../../helpers/rollbackOnUploadFailure");
+const UploadTracker = require("../../models/UploadTracker");
 
 // Module Scaffolding
 const manageFdc = {};
@@ -17,12 +20,24 @@ const manageFdc = {};
 manageFdc.getAllFdc = async function (req, res, next) {
   try {
     // Make a request to get all the current FDCs
-    const allFdcs = await FirstDegreeCreator.getAllFDCs();
+    let allFdcs = (await FirstDegreeCreator.getAllFDCs()).map((eachFdc) =>
+      eachFdc.toObject()
+    );
 
     // If no FDCs found
     if (!allFdcs) {
       return next(getErrorObj("No FDCs found in the repository!"));
     }
+
+    // Generate signedUrl and format
+    allFdcs = await Promise.all(
+      allFdcs.map(async (eachFdc) => {
+        eachFdc.creatorImage = await generateImageUrlAndFormat(
+          eachFdc.creatorImage
+        );
+        return eachFdc;
+      })
+    );
 
     // Send the request and attach all FDCs
     sendRequest({
@@ -37,7 +52,7 @@ manageFdc.getAllFdc = async function (req, res, next) {
   }
 };
 
-// This function will one FDC with an ID
+// This function retrieves an FDC with a provided fdcID ID
 manageFdc.getAnFdc = async function (req, res, next) {
   try {
     // Retrieve the fdcID
@@ -45,12 +60,18 @@ manageFdc.getAnFdc = async function (req, res, next) {
     console.log(req.params);
 
     // Retrieve the FDC
-    const retrievedFdc = await FirstDegreeCreator.getFdcByID(fdcID);
+    const retrievedFdc = (
+      await FirstDegreeCreator.getFdcByID(fdcID)
+    )?.toObject();
 
     // If FDC not found
     if (!retrievedFdc) {
       return next(getErrorObj("No FDCs found with the provided ID"));
     }
+    // Get signedUrl and format the image
+    retrievedFdc.creatorImage = await generateImageUrlAndFormat(
+      retrievedFdc.creatorImage
+    );
 
     // Send the request and attach the FDC
     sendRequest({
@@ -67,6 +88,21 @@ manageFdc.getAnFdc = async function (req, res, next) {
 // This function will create an Fdc
 manageFdc.addAnFdc = async function (req, res, next) {
   try {
+    if (!req.tracker) {
+      return next(
+        getErrorObj(
+          "Unable to create/find the tracker. Please ensure the upID is sent with the request body",
+          400
+        )
+      );
+    }
+
+    // The tracker instance for this FDC
+    const tracker = { ...req.tracker };
+
+    // Retrieve the files in tracker
+    const filesInTracker = new Set([...tracker.fileNames]);
+
     // Get the logged in user's ID. The Fdc will be added to the database under the logged-in employee
     const loggedInEmployeeID = req.user.ID;
 
@@ -76,8 +112,10 @@ manageFdc.addAnFdc = async function (req, res, next) {
     // Check the structure of the information provided
     const passedInFdcInfo = flattenObject(body); // Flattening the passed in FDC data
     const fdcKeys = FirstDegreeCreator.getKeys(); // Retrieving keys from the FDC model
+    if (!fdcKeys.includes("upID")) fdcKeys.push("upID");
     const providedKeys = Object.keys(passedInFdcInfo); // From the passed in FDC info
-    if (!structureChecker(fdcKeys, providedKeys)) {
+    const optionalFields = ["creatorImage"];
+    if (!structureChecker(fdcKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
           `FDC information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${fdcKeys.join(
@@ -89,9 +127,48 @@ manageFdc.addAnFdc = async function (req, res, next) {
     }
 
     // After validation of the structure
+    //  Process image uploads
+    if (
+      passedInFdcInfo.creatorImage &&
+      passedInFdcInfo.creatorImage !== process.env.DEFAULT_USER_FILENAME
+    ) {
+      // If the creator image is not in the fileTracker
+      if (!filesInTracker.has(passedInFdcInfo.creatorImage)) {
+        return next(
+          getErrorObj(
+            `The image file name provided for the FDC creatorImage does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+            400
+          )
+        );
+      }
+
+      // If there are multiple or zero images in the tracker
+      if (filesInTracker.size !== 1) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: When creating an FDC, the server expects exactly one image to be uploaded. However, found ${filesInTracker.size} image(s) in the tracker. Please ensure that one and only one image is provided for a successful FDC creation.`,
+            400
+          )
+        );
+      }
+    } else {
+      // If files detected in tracker, even if there was no creator image
+      if (filesInTracker.size !== 0) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: No creator images was provided, however fileTracker contains image(s)`,
+            400
+          )
+        );
+      }
+
+      // If no images provided, we use the default user image
+      passedInFdcInfo.creatorImage = process.env.DEFAULT_USER_FILENAME;
+    }
+
     // Generate a new fdcID
     const fdcID = generateID("fdc_");
-    stagedFdc = {
+    const stagedFdc = {
       ...passedInFdcInfo,
       fdcID,
       uploaderEmployeeID: loggedInEmployeeID,
@@ -100,7 +177,7 @@ manageFdc.addAnFdc = async function (req, res, next) {
     // Now Create the FDC
     const newFdc = await FirstDegreeCreator.createNewFDC(stagedFdc);
 
-    // If successfully created send success the request
+    // If successfully created send success message
     if (newFdc) {
       sendRequest({
         res,
@@ -109,7 +186,7 @@ manageFdc.addAnFdc = async function (req, res, next) {
         data: newFdc,
       });
     } else {
-      return next(getErrorObj(`Unable to create Fdc at this time`));
+      return next(getErrorObj(`Unable to create an Fdc at this time`));
     }
   } catch (error) {
     return next(error);
@@ -123,17 +200,24 @@ manageFdc.updateAnFdc = async function (req, res, next) {
     const { fdcID } = req.params;
 
     // Copy the body
-    const body = { ...req.body };
+    const body = flattenObject({ ...req.body });
 
-    // Check the structure of the information provide
-    const passedInFdcInfo = flattenObject(body); // Flattening the passed in FDC data
-    const providedKeys = Object.keys(passedInFdcInfo); // From the passed in FDC info
-    const optionalFields = ["creatorName", "creatorBio", "creatorImage"];
+    // Optional Fields
+    const optionalFields = [
+      "upID",
+      "creatorName",
+      "creatorBio",
+      "creatorImage",
+    ];
 
+    // Extract the keys from provided info
+    const providedKeys = Object.keys(body);
+
+    // Check the structure of the request against the FDC keys
     if (!structureChecker([], providedKeys, optionalFields)) {
       return next(
         getErrorObj(
-          `FDC information is either missing or contains invalid keys. Please review your submission and try again. At least one key is required. The keys are: ${optionalFields.join(
+          `FDC information missing or invalid keys provided. Required keys (at least one): ${optionalFields.join(
             ", "
           )}.`,
           400
@@ -141,21 +225,110 @@ manageFdc.updateAnFdc = async function (req, res, next) {
       );
     }
 
-    // Now update the Fdc
-    const updatedFdc = await FirstDegreeCreator.updateAnFdc(fdcID, body);
+    // This will contain the images that needs to be delete
+    let imagesToDelete = [];
 
-    // If Update failed
-    if (!updatedFdc) {
-      return next(getErrorObj());
+    // Get the fdc
+    const fdc = await FirstDegreeCreator.getFdcByID(fdcID);
+
+    // If the fdc is not found
+    if (!fdc) {
+      return next(getErrorObj(`No FDC found with provided ID.`, 400));
     }
 
-    // Send the request and attach the FDC
+    // Get the tracker
+    let tracker = null;
+
+    // If the creatorImage is not provided we get the tracker manually
+    if (!body.creatorImage) {
+      tracker = await UploadTracker.getTracker(fdc.upID);
+    } else if (body.creatorImage && !req.tracker) {
+      req.body.upID = fdc.upID;
+      return next(
+        getErrorObj(
+          `upID must be provided if updating images, or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
+    }
+
+    // If no tracker
+    if (!tracker || typeof tracker !== "object") {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this fdc!`,
+          400
+        )
+      );
+    }
+
+    // Create a set for fast look-up
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
+
+    // If the creator image is not provided for update, we check if there are any files uploaded
+    if (!body.creatorImage && imagesStaged.size > 0) {
+      req.body.upID = fdc.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no creatorImage provided`, 400)
+      );
+    } else if (body.creatorImage && body.creatorImage !== fdc.creatorImage) {
+      //  See if the provided creator image is uploaded and in the filesTracker
+      if (!imagesStaged.has(body.creatorImage)) {
+        return next(
+          getErrorObj(
+            `Provided filename for creatorImage, is not found in the tracker!`,
+            400
+          )
+        );
+      }
+
+      // Filter out the images need to be deleted
+      imagesToDelete =
+        fdc.creatorImage !== process.env.DEFAULT_USER_FILENAME
+          ? [fdc.creatorImage]
+          : [];
+    }
+
+    //  Now update the Fdc
+    const updatedFdc = await FirstDegreeCreator.updateAnFdc(fdcID, body);
+    if (!updatedFdc) {
+      return next(getErrorObj(`FDC update operation failed.`, 500));
+    }
+
+    if (imagesStaged.size > 0) {
+      // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+      await UploadTracker.mergeAndEmptyStagedFileNames(fdc.upID);
+    }
+
+    //  Send the request
     sendRequest({
       res,
       statusCode: 200,
-      message: "Successfully Updated Fdc",
+      message: "Successfully updated FDC.",
       data: updatedFdc,
     });
+
+    // Finally delete the images if any
+    if (imagesToDelete.length > 0) {
+      setImmediate(async () => {
+        try {
+          // Delete any images from the tracker
+          const result = await rollbackOnUploadFailure(
+            fdc.upID,
+            imagesToDelete,
+            false
+          );
+          console.log(result);
+        } catch (error) {
+          console.error("Image and tracker deletion failed", error);
+        }
+      });
+    }
   } catch (error) {
     return next(error);
   }
@@ -168,7 +341,7 @@ manageFdc.deleteAnFdcAndTheirContent = async function (req, res, next) {
 
   try {
     let linkDeletion = null;
-    let fdcDeletion = null;
+    let deletedFdc = null;
 
     // Retrieve the ID
     const { fdcID } = req.params;
@@ -176,10 +349,10 @@ manageFdc.deleteAnFdcAndTheirContent = async function (req, res, next) {
     // We perform the operations with transaction
     await session.withTransaction(async () => {
       linkDeletion = await Link.deleteManyWithID(`fdcID`, fdcID, session);
-      fdcDeletion = await FirstDegreeCreator.deleteByFdcID(fdcID, session);
+      deletedFdc = await FirstDegreeCreator.deleteByFdcID(fdcID, session);
     });
 
-    if (linkDeletion && fdcDeletion) {
+    if (linkDeletion && deletedFdc) {
       // Send the request and attach the FDC
       sendRequest({
         res,
@@ -193,9 +366,21 @@ manageFdc.deleteAnFdcAndTheirContent = async function (req, res, next) {
       // Run maintenance asynchronously after response is sent
       setImmediate(async () => {
         try {
+          // Delete any images and trackers
+          const result = await rollbackOnUploadFailure(
+            deletedFdc.upID,
+            null,
+            true
+          );
+          console.log(result);
+
+          // Delete any contents if they had, asynchronously
           await manualMaintenance();
         } catch (error) {
-          console.error("Maintenance task failed:", error);
+          console.error(
+            "Image and tracker deletion, or the Maintenance task failed:",
+            error
+          );
         }
       });
     } else {

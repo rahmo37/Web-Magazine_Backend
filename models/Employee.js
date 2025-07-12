@@ -16,6 +16,7 @@ const EMP_TYPES = process.env.EMP_TYPES.split(",");
 // Employee Schema
 const EmployeeSchema = new Schema(
   {
+    upID: { type: String, unique: true }, // later add required: true
     employeeID: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true },
@@ -39,8 +40,18 @@ const EmployeeSchema = new Schema(
       gender: { type: String, required: true },
       dateOfBirth: { type: Date, required: true },
     },
+    employeePreferences: {
+      profilePicture: {
+        type: String,
+        default: () => process.env.DEFAULT_USER_FILENAME,
+      },
+      themeColor: {
+        type: String,
+        default: () => process.env.DEFAULT_THEME_COLOR,
+      },
+    },
   },
-  { collection: "employee" }
+  { timestamps: true, collection: "employee" }
 );
 
 // Employee validation field
@@ -50,8 +61,12 @@ EmployeeSchema.statics.getKeys = function () {
     "employeeID",
     "_id",
     "__v",
+    "createdAt",
+    "updatedAt",
     "temporaryApproval",
     "lastLogin",
+    "profilePicture",
+    "themeColor",
     "accountCreated",
     "isActiveAccount",
   ];
@@ -144,6 +159,8 @@ EmployeeSchema.methods.updateAnEmployee = async function (updateInfo) {
       // Check if the key is supposed to be in the nested employeeBio object.
       if (["firstName", "lastName", "gender", "dateOfBirth"].includes(key)) {
         this.set(`employeeBio.${key}`, updateInfo[key]);
+      } else if (["profilePicture", "themeColor"].includes(key)) {
+        this.set(`employeePreferences.${key}`, updateInfo[key]);
       } else {
         this.set(key, updateInfo[key]);
       }
@@ -180,6 +197,6 @@ EmployeeSchema.statics.deleteEmployeeByID = async function (ID) {
 };
 
 // Create and export Employee model
-const Employee = mongoose.model("Employee", EmployeeSchema);
+const Employee = mongoose.model("Employee", EmployeeSchema, "employee");
 
 module.exports = Employee;

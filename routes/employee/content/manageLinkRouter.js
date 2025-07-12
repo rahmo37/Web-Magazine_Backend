@@ -19,7 +19,7 @@ manageLinkRouter.patch(
   // Validate department param
   validateDepartmentParam,
   // Only root admin and department admin can access
-  routeAccessVerify(null, true),
+  // routeAccessVerify(null, true),
   // Verify the body
   verifyReqBody,
   // Validate the IDs
@@ -28,13 +28,23 @@ manageLinkRouter.patch(
   manageLinkController.updateContentLink
 );
 
-// Update all given fdc id's link to hemanto's fdc if corresponding link has no sdc
+// Update all given fdc ID's link to hemanto's fdc if corresponding link has no sdc
 manageLinkRouter.patch(
   `/:fdcID${getRegexForID("fdc_", 12)}`,
   // Only root admin is allowed
   isRootAdmin,
   // Update to hemanto fdc
   manageLinkController.updateToHemantoFdc
+);
+
+
+// Update all given sdcID's link to hemanto's sdc
+manageLinkRouter.patch(
+  `/:sdcID${getRegexForID("sdc_", 12)}`,
+  // Only root admin is allowed
+  isRootAdmin,
+  // Update to hemanto fdc
+  manageLinkController.updateToHemantoSdc
 );
 
 // Export the module

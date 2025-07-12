@@ -123,7 +123,10 @@ LinkSchema.statics.findByAllIds = async function (providedIDs = {}) {
 
   // If ID is passed as a String
   if (typeof providedIDs === "string") {
-    IDs = { [`providedIDs.split("_")[0]ID`]: providedIDs };
+    // Extract the prefix before the first underscore and append "ID" to form
+    // the appropriate field name (e.g. "fdc_abc" -> "fdcID")
+    const key = `${providedIDs.split("_")[0]}ID`;
+    IDs = { [key]: providedIDs };
   } else {
     IDs = { ...providedIDs };
   }
@@ -161,6 +164,26 @@ LinkSchema.statics.updateFdcIDWhenSdcIsNull = async function (targetFdcID) {
   return result; // contains matchedCount and modifiedCount
 };
 
+// An sdcID is provided, and its corresponding link's sdcID i changed to HemantoID
+LinkSchema.statics.updateSdcIDToHemantoID = async function (targetSdcID) {
+  // Check that at least one link exists with the given sdcID
+  const exists = await this.exists({ sdcID: targetSdcID });
+
+  //  If does not exists
+  if (!exists) {
+    throw getErrorObj(`No links found with sdcID: ${targetSdcID}`, 400);
+  }
+
+  // Update the sdc
+  const result = await this.updateMany(
+    { sdcID: targetSdcID }, // Only when matched
+    { $set: { sdcID: hemantoSdcID } } // Update
+  );
+
+  return result;
+};
+
+// Find by contentID and update that link with provided data
 LinkSchema.statics.updateALinkWithContentID = async function (
   contentID,
   updatedLinkData

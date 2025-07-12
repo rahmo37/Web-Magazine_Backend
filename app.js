@@ -11,14 +11,14 @@ require("dotenv").config({ path: envFile });
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const path = require("path");
-const bodyParse = require("body-parser");
+const bodyParser = require("body-parser");
+// const parseImageMeta = require("./middlewares/parseImageMeta");
 const requestInfo = require("./middlewares/logRequestInformation");
 const dbConfig = require("./config/db");
 const { dbMaintenance } = require("./helpers/scheduledTasks");
-const { hashPasswordInDatabase } = require("./helpers/hashPassword");
 const authenticateToken = require("./middlewares/jwtTokenVerify");
 const roleVerify = require("./middlewares/roleVerification");
+const cookieParser = require("cookie-parser");
 
 // Security imports
 const helmet = require("helmet");
@@ -39,12 +39,16 @@ const {
 } = require("./routes/authentication/employeeLoginRouter");
 const { manageEmployeeRouter } = require("./routes/admin/manageEmployeeRouter");
 const { manageFdcRouter } = require("./routes/employee/manageFdcRouter");
+const { manageSdcRouter } = require("./routes/employee/manageSdcRouter");
 const {
   manageGoddoRouter,
 } = require("./routes/employee/content/manageGoddoRouter");
 const {
   manageLinkRouter,
 } = require("./routes/employee/content/manageLinkRouter");
+
+// Other Imports
+const { sendRequest } = require("./helpers/sendRequest");
 
 // ---------------------------------Project variables---------------------------------
 const PORT = process.env.PORT || 8000;
@@ -64,11 +68,37 @@ app.use(
 //Set security headers
 app.use(helmet());
 
-// Enable cors-origin requests
-app.use(cors());
+// Enabling cors-origin requests. During development only allowing front-end development team. Below origins are allowed
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:5500",
+  "http://127.0.0.1:5501",
+  "http://localhost:5500",
+  "http://localhost:5501",
+  "http://localhost:8000",
+  "http://localhost:5172",
+  "http://localhost:5173",
+];
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (like Postman, or get request from browser)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
+// Log Request Information
+app.use(requestInfo);
 
 // Data parsing middleware
-app.use(bodyParse.json());
+app.use(bodyParser.json({ limit: "50mb" }));
 
 // Mongodb query sanitize
 app.use(mongoSanitize());
@@ -76,13 +106,22 @@ app.use(mongoSanitize());
 // Cross-Site Scripting sanitization
 app.use(xss());
 
-// Log Request Information
-app.use(requestInfo);
-
-// !Also implement cookie
+// Parse any cookie
+app.use(cookieParser());
 
 // ---------------------------------End-points---------------------------------
+
 // Employee Routes
+
+// Check JWT token validity
+app.use("/api/auth/check", authenticateToken, (req, res) => {
+  return sendRequest({
+    res,
+    statusCode: 200,
+    message: "Token is valid",
+    data: req.user,
+  });
+});
 
 // Login route
 // Rate-Limiter for login in production
@@ -97,11 +136,15 @@ app.use(
 //* Only employees are allowed beyond this point and Requests must have JWT token
 app.use(authenticateToken, roleVerify.isEmployee);
 
+
 // Employee Management Route
 app.use("/api/manage/employee", manageEmployeeRouter);
 
-// Creator Management Route
+// FDC Management Route
 app.use("/api/manage/fdc", manageFdcRouter);
+
+// SDC Management Route
+app.use("/api/manage/sdc", manageSdcRouter);
 
 // Content Management Route
 // Content Links

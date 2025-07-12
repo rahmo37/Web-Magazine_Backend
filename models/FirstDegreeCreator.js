@@ -10,10 +10,14 @@ const { getErrorObj } = require("../helpers/getErrorObj");
 // First Degree Creator Schema
 const FirstDegreeCreatorSchema = new Schema(
   {
+    upID: { type: String, required: true, unique: true },
     fdcID: { type: String, required: true, unique: true },
     creatorName: { type: String, required: true },
     creatorBio: { type: String, default: "" },
-    creatorImage: { type: String, default: "" },
+    creatorImage: {
+      type: String,
+      default: () => process.env.DEFAULT_USER_FILENAME,
+    },
     uploaderEmployeeID: { type: String, required: true },
   },
   { timestamps: true, collection: "firstDegreeCreator" }
@@ -44,10 +48,12 @@ FirstDegreeCreatorSchema.statics.getKeys = function () {
   // Excluded fields
   const exclude = [
     "fdcID",
+    "upID",
     "_id",
     "__v",
     "createdAt",
     "updatedAt",
+    "creatorImage",
     "uploaderEmployeeID",
   ];
   const allowedKeys = Object.keys(this.schema.paths)
@@ -57,6 +63,7 @@ FirstDegreeCreatorSchema.statics.getKeys = function () {
   return keys;
 };
 
+// Update an FDC
 FirstDegreeCreatorSchema.statics.updateAnFdc = async function (fdcID, fdcData) {
   // Find the Fdc
   const fdc = await this.findOne({ fdcID });
@@ -74,10 +81,21 @@ FirstDegreeCreatorSchema.statics.updateAnFdc = async function (fdcID, fdcData) {
 
 // Delete many FDCs with fdcIDs array
 FirstDegreeCreatorSchema.statics.deleteByIDs = async function (fdcIDsArr) {
-  const result = await FirstDegreeCreator.deleteMany({
-    fdcID: { $in: fdcIDsArr },
-  });
-  return result.deletedCount;
+  // 1. Find docs to get upIDs
+  const docsToDelete = await this.find(
+    { fdcID: { $in: fdcIDsArr } },
+    { upID: 1, _id: 0 }
+  );
+  const upIDs = docsToDelete.map((doc) => doc.upID);
+
+  // 2. Delete the documents
+  const result = await this.deleteMany({ fdcID: { $in: fdcIDsArr } });
+
+  // 3. Return both deletedCount and upIDs
+  return {
+    deletedCount: result.deletedCount,
+    upIDs,
+  };
 };
 
 // Delete one FDC with ID
@@ -100,8 +118,8 @@ FirstDegreeCreatorSchema.statics.deleteByFdcID = async function (
   }
 
   // Delete the document (inside session if provided)
-  const result = await this.deleteOne({ fdcID }, opts);
-  return result;
+  const deletedFdc = await this.findOneAndDelete({ fdcID }, opts);
+  return deletedFdc;
 };
 
 // Get all the FDC IDs

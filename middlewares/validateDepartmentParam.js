@@ -8,7 +8,8 @@ const { getErrorObj } = require("../helpers/getErrorObj");
 // Middleware to validate department param
 const validateDepartmentParam = (req, res, next) => {
   // Extract the department
-  const { department } = req.params;
+  let { department } = req.params;
+  department = department.toLowerCase();
 
   // Check if the department is valid
   if (!validDepartments.includes(department)) {

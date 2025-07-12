@@ -12,6 +12,11 @@ const {
 const verifyReqBody = require("../../../middlewares/verifyReqBody");
 const { validationHandler } = require("../../../middlewares/validationHandler");
 const getRegexForID = require("../../../helpers/getRegexForID");
+const {
+  uploadBatchedImages,
+} = require("../../../controllers/imageOperationsController");
+const multerImageInjection = require("../../../middlewares/multerImageInjection");
+const parseImageMeta = require("../../../middlewares/parseImageMeta");
 
 // Necessary variables
 const department = "goddo";
@@ -19,6 +24,7 @@ const department = "goddo";
 // Only Root Admins and the employees in goddo departments are allowed
 manageGoddoRouter.use(routeAccessVerify(department));
 
+// TODO Delete Later
 // manageGoddoRouter.use((req, res, next) => {
 //   console.log("Hi");
 // });
@@ -30,11 +36,17 @@ manageGoddoRouter
   // Post a goddo
   .post(
     // See if the employee is explicitly denied to post any content
-    // explicitDenyVerify(department),
+    //! explicitDenyVerify(department),
+    // If any images in the request, multer injects them in the req.files
+    multerImageInjection,
+    // parse the metadata of the images,
+    parseImageMeta,
     // Verify the request body
     verifyReqBody,
     // Validate the posted fields
     validationHandler(),
+    // Upload the images in batch
+    uploadBatchedImages,
     // Post goddo controller
     manageGoddoController.postAGoddo
   );
@@ -50,10 +62,16 @@ manageGoddoRouter
   .patch(
     // Check if the logged in user has modification permission
     modificationAccessVerify("godID", department), //! Please recheck this middleware may have bugs
+    // If any images in the request, multer injects them in the req.files
+    multerImageInjection,
+    // parse the metadata of the images,
+    parseImageMeta,
     // Verify if the body is invalid
     verifyReqBody,
     // Validate the request body fields
     validationHandler(),
+    // Upload the images in batch
+    uploadBatchedImages,
     // Update a goddo section inside the main content
     manageGoddoController.updateAGoddoSection,
     // Update metadata of a goddo

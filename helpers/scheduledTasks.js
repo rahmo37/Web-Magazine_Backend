@@ -1,30 +1,51 @@
 // scheduler.js
 const cron = require("node-cron");
-const Employee = require("../models/Employee");
-const FirstDegreeCreator = require("../models/FirstDegreeCreator");
-const SecondDegreeCreator = require("../models/SecondDegreeCreator");
-const { hashPasswordInDatabase } = require("./hashPassword");
-const { trimCreator } = require("./trimOrphanedCreators");
-const { trimContents } = require("./trimOrphanedContents");
 const { dateAndTime } = require("../helpers/dateAndTime");
+const findModule = require("./findModulePath");
+const assignJob = require("./assignJob");
+const formatLogText = require("./formatLogText");
 
-// Cron expression: every day at 12:00 PM New York time
+// Cron expression: every day at 12:00 PM New York time
 const timeExpression = "0 12 * * *";
 
 // Validate the expression
 if (!cron.validate(timeExpression)) {
-  console.error("❌ Invalid cron expression:", timeExpression);
+  // Use plain log here since formatLogText is async and can't be awaited at top-level sync code
+  formatLogText(`❌ Invalid cron expression: ${timeExpression}`).then((msg) =>
+    console.error(msg)
+  );
   process.exit(1);
 }
 
 const scheduler = {};
 
-// Define the scheduled task (but don’t start it yet)
+/**
+ * Scheduled task for daily DB maintenance.
+ * Runs every day at 12:00 PM New York time (disabled at start).
+ */
 scheduler.dbMaintenance = cron.schedule(
   timeExpression,
   async () => {
-    console.log("🔄 Running scheduled maintenance:", new Date());
-    await allMaintenanceFunctions();
+    console.log(
+      formatLogText(
+        `🔄 Running scheduled maintenance`,
+        dateAndTime.getLocalFormatted()
+      )
+    );
+
+    // Assigning Worker thread for maintenance
+    assignJob(findModule("maintenanceFunctions.js"))
+      .then(async () => {
+        console.log(
+          formatLogText(
+            `Maintenance completed at`,
+            dateAndTime.getLocalFormatted()
+          )
+        );
+      })
+      .catch(async (err) => {
+        console.log(formatLogText(err));
+      });
   },
   {
     scheduled: false,
@@ -32,50 +53,32 @@ scheduler.dbMaintenance = cron.schedule(
   }
 );
 
-// Orchestrator with per‑step try/catch
-async function allMaintenanceFunctions() {
-  // 1) Hash any unhashed passwords
-  try {
-    await hashPasswordInDatabase([Employee]);
-  } catch (err) {
-    console.error("⚠️ Error during password hashing:", err);
-  }
-
-  // 2) Trim orphaned first‑degree creators
-  try {
-    await trimCreator(FirstDegreeCreator);
-  } catch (err) {
-    console.error("⚠️ Error trimming FirstDegreeCreator:", err);
-  }
-
-  // 3) Trim orphaned second‑degree creators
-  try {
-    await trimCreator(SecondDegreeCreator);
-  } catch (err) {
-    console.error("⚠️ Error trimming SecondDegreeCreator:", err);
-  }
-
-  // 4) Trim orphaned contents
-  try {
-    await trimContents();
-  } catch (err) {
-    console.error("⚠️ Error in trimContents:", err);
-  }
-}
-
-scheduler.manualMaintenance = async function () {
-  await allMaintenanceFunctions();
-  console.log(
-    "🚀 Initial maintenance completed at",
-    dateAndTime.getLocalFormatted()
-  );
+/**
+ * Immediately run maintenance manually upon server startup.
+ */
+scheduler.manualMaintenance = function () {
+  assignJob(findModule("maintenanceFunctions.js"))
+    .then(() => {
+      console.log(
+        formatLogText(
+          `🚀 Maintenance completed at:`,
+          dateAndTime.getLocalFormatted()
+        )
+      );
+    })
+    .catch((err) => {
+      console.log(formatLogText(err));
+    });
 };
-// Immediately run one maintenance upon server start up
+
+// Run one maintenance immediately when server starts
 // scheduler.manualMaintenance();
 
-// Gracefully stop cron on exit
-process.on("SIGINT", () => {
-  console.log("🛑 Stopping scheduled tasks");
+/**
+ * Gracefully stop cron on exit (Ctrl+C).
+ */
+process.on("SIGINT", async () => {
+  console.log(formatLogText("🛑 Stopping scheduled tasks"));
   scheduler.dbMaintenance.stop();
   process.exit(0);
 });

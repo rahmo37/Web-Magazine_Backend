@@ -1,40 +1,58 @@
-// This file verifies Json Web Token
+// This file verifies JSON Web Token (JWT)
 
-// Importing Module
+// Importing Modules
 const jwt = require("jsonwebtoken");
 const jwtConfig = require("../config/jwtConfig");
+const { dateAndTime } = require("../helpers/dateAndTime");
 
-// Middleware function that checks for Json Web Token
+// Middleware function that checks for JWT from cookies first, then headers
 const authenticateToken = (req, res, next) => {
-  // Getting the bearer and the token from the header
-  const authHeader = req.headers["authorization"];
+  let token;
+  // Priority 1: Check for token in cookies
+  if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+  // Priority 2: Check for token in Authorization header
+  else if (req.headers["authorization"]) {
+    const authHeader = req.headers["authorization"];
+    token = authHeader.split(" ")[1];
+  }
 
-  // splitting the token
-  const token = authHeader && authHeader.split(" ")[1];
-
+  // If token is not found, return error
   if (!token) {
     const err = new Error(
-      "Missing token... you need an authorization token to complete this action"
+      "Missing token!! Please obtain an authorization token before proceeding"
     );
-    err.status = 403;
+    err.status = 401;
     return next(err);
   }
 
-  // now we verify the token
+  // Verify the token
   jwt.verify(token, jwtConfig.secret, (err, user) => {
     if (err) {
-      err.status = 403;
+      err.status = 401;
       err.message = "Invalid token and signature";
       return next(err);
     }
-    
-    // If verified, attach the user info to the req object to be used by the next middle ware
+
+    // Reformat the time when the token is provided
+    user.iat = dateAndTime.convertToLocalFormatted(
+      new Date(user.iat * 1000)
+    ).time;
+
+
+    // Reformat the time when the token is expired
+    user.exp = dateAndTime.convertToLocalFormatted(
+      new Date(user.exp * 1000)
+    ).time;
+
+    // Attach user info to req object for next middleware
     req.user = user;
 
-    // call next middleware
+    // Continue to next middleware
     next();
   });
 };
 
-// export the module
+// Export the module
 module.exports = authenticateToken;

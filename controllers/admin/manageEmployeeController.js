@@ -9,6 +9,9 @@ const { sendRequest } = require("../../helpers/sendRequest");
 const { dateAndTime } = require("../../helpers/dateAndTime");
 const { generateID } = require("../../helpers/generateID");
 const { getHashedPassword } = require("../../helpers/hashPassword");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
+const rollbackOnUploadFailure = require("../../helpers/rollbackOnUploadFailure");
+const UploadTracker = require("../../models/UploadTracker");
 
 // Module scaffolding
 const manageEmployee = {};
@@ -17,13 +20,26 @@ const manageEmployee = {};
 manageEmployee.getAllEmployees = async (req, res, next) => {
   try {
     // Retrieving all the employees
-    const allEmployees = await Employee.getAllEmployees();
+    let allEmployees = (await Employee.getAllEmployees()).map((eachEmp) =>
+      eachEmp.toObject()
+    );
 
     if (!allEmployees || allEmployees.length === 0) {
       return next(
         getErrorObj(`Unable to retrieve employees, or no employees exist`, 404)
       );
     }
+
+    // Generate signedUrl and format
+    allEmployees = await Promise.all(
+      allEmployees.map(async (eachEmp) => {
+        eachEmp.employeePreferences.profilePicture =
+          await generateImageUrlAndFormat(
+            eachEmp.employeePreferences.profilePicture
+          );
+        return eachEmp;
+      })
+    );
 
     // Send the employee data
     sendRequest({
@@ -51,11 +67,18 @@ manageEmployee.getAnEmployee = async (req, res, next) => {
     }
 
     // Retrieve the employee
-    const employee = await Employee.getEmployeeByID(ID);
+    const employee = (await Employee.getEmployeeByID(ID))?.toObject();
 
+    // If no employee found
     if (!employee) {
       return next(getErrorObj(`No employee found with the provided ID`, 404));
     }
+
+    // Get signedUrl and format the image
+    employee.employeePreferences.profilePicture =
+      await generateImageUrlAndFormat(
+        employee.employeePreferences.profilePicture
+      );
 
     // Now sending the employee info
     sendRequest({
@@ -72,10 +95,26 @@ manageEmployee.getAnEmployee = async (req, res, next) => {
 // Add an employee
 manageEmployee.addEmployee = async (req, res, next) => {
   try {
+    if (!req.tracker) {
+      return next(
+        getErrorObj(
+          "Unable to create/find the tracker. Please ensure the upID is sent with the request body",
+          400
+        )
+      );
+    }
+
+    // The tracker instance for this employee
+    const tracker = { ...req.tracker };
+
+    // Retrieve the files in tracker
+    const filesInTracker = new Set([...tracker.fileNames]);
+
     const passedInEmployeeInfo = flattenObject(req.body);
     const employeeKeys = Employee.getKeys();
     const providedKeys = Object.keys(passedInEmployeeInfo);
-    if (!structureChecker(employeeKeys, providedKeys)) {
+    const optionalFields = ["profilePicture"];
+    if (!structureChecker(employeeKeys, providedKeys, optionalFields)) {
       return next(
         getErrorObj(
           `Employee information is either missing or contains invalid keys. Please review your submission and try again. The required keys are: ${employeeKeys.join(
@@ -86,8 +125,49 @@ manageEmployee.addEmployee = async (req, res, next) => {
       );
     }
 
+    // After validation of the structure
+    //  Process image uploads
+    if (
+      passedInEmployeeInfo.profilePicture &&
+      passedInEmployeeInfo.profilePicture !== process.env.DEFAULT_USER_FILENAME
+    ) {
+      // If the profilePicture is not in the fileTracker
+      if (!filesInTracker.has(passedInEmployeeInfo.profilePicture)) {
+        return next(
+          getErrorObj(
+            `The image file name provided for the Employee ProfilePicture does not match any file in the upload tracker. Please ensure the creatorImage file name corresponds to one of the uploaded files`,
+            400
+          )
+        );
+      }
+
+      // If there are multiple or zero images in the tracker
+      if (filesInTracker.size !== 1) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: When creating an Employee, the server expects exactly one image to be uploaded for the ProfilePicture. However, found ${filesInTracker.size} image(s) in the tracker. Please ensure that one and only one image is provided for a successful Employee creation.`,
+            400
+          )
+        );
+      }
+    } else {
+      // If files detected in tracker, even if there was no Profile Picture
+      if (filesInTracker.size !== 0) {
+        return next(
+          getErrorObj(
+            `Inconsistency detected in the tracker: No profile picture was provided, however fileTracker contains image(s)`,
+            400
+          )
+        );
+      }
+
+      // If no images provided, we use the default user image
+      passedInEmployeeInfo.profilePicture = process.env.DEFAULT_USER_FILENAME;
+    }
+
     // Destructuring values
     let {
+      upID,
       email,
       phone,
       password,
@@ -98,13 +178,14 @@ manageEmployee.addEmployee = async (req, res, next) => {
       firstName,
       lastName,
       gender,
+      profilePicture,
       dateOfBirth,
     } = passedInEmployeeInfo;
 
     // Check if the employee already exists with the email address provided
     const doesExistsWithEmail = await Employee.getEmployeeByEmail(email);
 
-    // If employee exists
+    // If employee exists with email
     if (doesExistsWithEmail) {
       return next(
         getErrorObj(
@@ -117,7 +198,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
     // Check if the employee already exists with the phone number provided
     const doesExistsWithPhone = await Employee.getEmployeeByPhone(phone);
 
-    // If employee exists
+    // If employee exists with phone
     if (doesExistsWithPhone) {
       return next(
         getErrorObj(
@@ -141,6 +222,7 @@ manageEmployee.addEmployee = async (req, res, next) => {
 
     // Creating new employee with values
     const newEmployeeObject = {
+      upID,
       email: email.toLowerCase(),
       phone,
       password: await getHashedPassword(password),
@@ -149,6 +231,10 @@ manageEmployee.addEmployee = async (req, res, next) => {
       department,
       deniedDepartment,
       employeeBio: { firstName, lastName, gender, dateOfBirth },
+      employeePreferences: {
+        profilePicture,
+        themeColor: process.env.DEFAULT_THEME_COLOR,
+      },
     };
 
     // Gathering other necessary information
@@ -183,14 +269,14 @@ manageEmployee.addEmployee = async (req, res, next) => {
     console.error(error.message);
 
     // Send a generic error to the client
-    next(getErrorObj());
+    return next(getErrorObj());
   }
 };
 
 // Update an employee info
 manageEmployee.updateAnEmployee = async (req, res, next) => {
   try {
-    // Retrieve the ID
+    // Retrieve the ID from req.params
     const { ID } = req.params;
 
     // If the ID does not start with emp_
@@ -200,7 +286,7 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       );
     }
 
-    // Retrieve the employee
+    // Retrieve the employee instance
     const employee = await Employee.getEmployeeByID(ID);
 
     // If no employee found with the provided ID
@@ -209,7 +295,7 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
     }
 
     // Now retrieve the update information
-    const updateInfo = req.body;
+    const updateInfo = { ...req.body };
 
     // Flatten the updated info if provided in a nested structure
     const flattenedUpdateInfo = flattenObject(updateInfo);
@@ -217,11 +303,12 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
     // Convert employee keys to a Set for faster lookup
     const employeeKeysSet = new Set(Employee.getKeys());
 
-    // Add the isActiveAccount and temporaryApproval field manually since the getKeys() does not return isActiveAccount key
+    // Add the isActiveAccount, temporaryApproval, profilePicture and themeColor fields manually since the getKeys() does not return these keys
     if (ID !== req.user.ID) {
       employeeKeysSet.add("isActiveAccount");
       employeeKeysSet.add("temporaryApproval");
-
+      employeeKeysSet.add("themeColor");
+      employeeKeysSet.add("profilePicture");
     }
 
     // Find invalid keys
@@ -234,6 +321,76 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       return next(
         getErrorObj(`Invalid keys found: ${invalidKeys.join(", ")}`, 400)
       );
+    }
+
+    // This will contain the images that needs to be delete
+    let imagesToDelete = [];
+
+    // Get the tracker
+    let tracker = null;
+
+    // ProfilePicture provided to be updated if exists
+    let providedProfilePicture = flattenedUpdateInfo?.profilePicture;
+
+    // Current ProfilePicture in the employee
+    let currentProfilePicture = employee?.employeePreferences?.profilePicture;
+
+    // If the creatorImage is not provided we get the tracker manually
+    if (!providedProfilePicture) {
+      tracker = await UploadTracker.getTracker(employee.upID);
+    } else if (providedProfilePicture && !req.tracker) {
+      req.body.upID = employee.upID;
+      return next(
+        getErrorObj(
+          `upID must be provided if updating images, or a tracker was not found with the provided upID`,
+          400
+        )
+      );
+    }
+    //  If we find the tracker in the request, we get the tracker
+    else {
+      tracker = req.tracker;
+    }
+
+    // If no tracker
+    if (!tracker || typeof tracker !== "object") {
+      return next(
+        getErrorObj(
+          `Inconsistencies detected: no tracker was found for this employee!`,
+          400
+        )
+      );
+    }
+
+    // Create a set for fast look-up
+    // Images staged
+    let imagesStaged = new Set(tracker.stagedFileNames);
+
+    // If the creator image is not provided for update, we check if there are any files uploaded
+    if (!providedProfilePicture && imagesStaged.size > 0) {
+      req.body.upID = employee.upID;
+      return next(
+        getErrorObj(`Images were uploaded, but no profilePicture provided`, 400)
+      );
+    } else if (
+      providedProfilePicture &&
+      providedProfilePicture !== currentProfilePicture
+    ) {
+      // See if the providedProfilePicture is staged
+      if (!imagesStaged.has(providedProfilePicture)) {
+        return next(
+          getErrorObj(
+            `Provided filename for creatorImage, is not found in the tracker!`,
+            400
+          )
+        );
+      }
+
+      // Filter out the images need to be deleted
+      imagesToDelete =
+        currentProfilePicture !== process.env.DEFAULT_USER_FILENAME
+          ? [currentProfilePicture]
+          : [];
     }
 
     // If the employee is an admin
@@ -259,14 +416,14 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       flattenedUpdateInfo.deniedDepartment = [];
     }
 
-    // if department is being updated ensure all the names are in lowercase
+    // If department is being updated ensure all the names are in lowercase
     if (flattenedUpdateInfo.department) {
       flattenedUpdateInfo.department = flattenedUpdateInfo.department.map(
         (dept) => dept.toLowerCase()
       );
     }
 
-    // if denied department is being updated ensure all the names are in lowercase
+    // If denied department is being updated ensure all the names are in lowercase
     if (flattenedUpdateInfo.deniedDepartment) {
       flattenedUpdateInfo.deniedDepartment =
         flattenedUpdateInfo.deniedDepartment.map((dept) => dept.toLowerCase());
@@ -277,11 +434,20 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       flattenedUpdateInfo
     );
 
+    if (!updatedEmployee) {
+      return next(getErrorObj(`Employee update operation failed.`, 500));
+    }
+
     // Convert Mongoose document to a plain object
     const updatedEmployeeObj = updatedEmployee.toObject();
 
     // Delete the password before sending
     delete updatedEmployeeObj.password;
+
+    if (imagesStaged.size > 0) {
+      // Merge the stagedImages with the actual fileNames array and empty the stagedImages
+      await UploadTracker.mergeAndEmptyStagedFileNames(employee.upID);
+    }
 
     // Now sending the response with the new employee data
     sendRequest({
@@ -290,6 +456,23 @@ manageEmployee.updateAnEmployee = async (req, res, next) => {
       message: "Employee updated",
       data: updatedEmployeeObj,
     });
+
+    // Finally delete the images if any
+    if (imagesToDelete.length > 0) {
+      setImmediate(async () => {
+        try {
+          // Delete any images from the tracker
+          const result = await rollbackOnUploadFailure(
+            employee.upID,
+            imagesToDelete,
+            false
+          );
+          console.log(result);
+        } catch (error) {
+          console.error("Image and tracker deletion failed", error);
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -347,6 +530,12 @@ manageEmployee.deleteAnEmployee = async (req, res, next) => {
       statusCode: 200,
       message: "Employee deleted successfully",
       data: null,
+    });
+
+    // Also delete the image and tracker for this employee
+    setImmediate(async () => {
+      const result = await rollbackOnUploadFailure(employee.upID);
+      console.log(result);
     });
   } catch (error) {
     next(error);

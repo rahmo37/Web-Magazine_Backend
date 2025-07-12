@@ -1,5 +1,6 @@
 require("dotenv").config({ path: "../.env.development" });
 const { OpenAI } = require("openai"); //  npm i openai
+console.log(process.env.OPEN_AI_TRANSLATOR_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPEN_AI_TRANSLATOR_KEY });
 
 async function translate(bn) {

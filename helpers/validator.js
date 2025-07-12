@@ -74,7 +74,7 @@ function makeBanglaTextValidator(fieldLabel, { min = 1, max = Infinity } = {}) {
  */
 function validateImageString(imageStr) {
   const errors = [];
-  const allowedTypes = ["jpg", "jpeg", "png", "gif", "webp"];
+  const allowedTypes = ["jpg", "jpeg", "png", "webp"];
 
   if (typeof imageStr !== "string" || !imageStr.trim()) {
     errors.push("Image string must be a non-empty string.");
@@ -419,38 +419,45 @@ validator.dateOfBirth = function (dateOfBirth) {
  *  - Contains at least one element.
  *  - Each department name (after converting to lowercase) is one of the allowed names from process.env.DEPARTMENTS.
  */
-validator.department = function (department) {
+function validateDepartmentField(fieldValue, fieldName = "Department") {
   const errors = [];
 
-  if (!department) {
-    errors.push("Department is required.");
+  if (!fieldValue) {
+    errors.push(`${fieldName} is required.`);
     return { valid: false, error: numberErrors(errors) };
   }
 
-  if (!Array.isArray(department)) {
-    errors.push("Department field must be an array.");
+  if (!Array.isArray(fieldValue)) {
+    errors.push(`${fieldName} field must be an array.`);
     return { valid: false, error: numberErrors(errors) };
   }
 
-  if (department.length === 0) {
-    errors.push("Department array must contain at least one element.");
+  console.log(fieldName);
+
+  if (fieldName === "Department" && fieldValue.length === 0) {
+    errors.push(`${fieldName} array must contain at least one element.`);
   }
 
-  // Assuming department names should be one of the given values (case-insensitive)
   const validDepartments = process.env.DEPARTMENTS.split(",");
-
-  // Convert department array to lowercase strings for validation
-  const lowerCaseDepts = department.map((dept) =>
+  const lowerCaseDepts = fieldValue.map((dept) =>
     typeof dept === "string" ? dept.toLowerCase() : ""
   );
   if (!lowerCaseDepts.every((dept) => validDepartments.includes(dept))) {
-    errors.push("Invalid department name found!");
+    errors.push(`Invalid ${fieldName.toLowerCase()} name found!`);
   }
 
   return {
     valid: errors.length === 0,
     error: numberErrors(errors),
   };
+}
+
+validator.department = function (department) {
+  return validateDepartmentField(department, "Department");
+};
+
+validator.deniedDepartment = function (department) {
+  return validateDepartmentField(department, "Denied Department");
 };
 
 //! --------------------Date Joined
@@ -594,12 +601,38 @@ validator.sdcID = checkID("sdc_", 12, "Invalid sdcID provided");
 //! --------------------employeeID
 validator.employeeID = checkID("emp_", 6, "Invalid employeeID provided");
 
+//! --------------------upID
+validator.upID = checkID(
+  "up_",
+  12,
+  "Invalid upID provided. example: up_123456789321"
+);
+
+//! --------------------batchNumber
+validator.batchNumber = function checkValidBatchNo(number) {
+  const errors = [];
+  if (isNaN(number)) {
+    errors.push("The value of the batch number must be a number");
+  }
+
+  if (number < 1 || number > 10) {
+    errors.push(
+      "The batch number cannot be less then 1 and cannot be more than 10"
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    error: numberErrors(errors),
+  };
+};
+
 // Min-Max boundary for each field
 const bioOpts = { min: 50, max: 2000 };
 const nameOpts = { min: 5, max: 300 };
 const trailerOpts = { min: 25, max: 500 };
-const aboutOpts = { min: 20, max: 2000 };
-const sectionOpts = { min: 10, max: 4000 };
+const aboutOpts = { min: 25, max: 2000 };
+const sectionOpts = { min: 25, max: 4000 };
 
 //! --------------------creatorBio
 validator.creatorBio = makeBanglaTextValidator("Creator bio", bioOpts);
@@ -627,6 +660,27 @@ validator.creatorImage = validateImageString;
 
 //! --------------------articleCover
 validator.articleCover = validateImageString;
+
+//! --------------------profilePicture
+validator.profilePicture = validateImageString;
+
+//! --------------------themeColor
+validator.themeColor = function (color) {
+  const errors = [];
+
+  // Current theme colors
+  const currentColors = process.env.THEME_COLORS.split(",");
+
+  // If current colors does not have the color passed-in
+  if (!currentColors.includes(color.toUpperCase())) {
+    errors.push("The color value provided is not acceptable");
+  }
+
+  return {
+    valid: errors.length === 0,
+    error: numberErrors(errors),
+  };
+};
 
 //! --------------------originalWritingDate
 /**
@@ -682,7 +736,7 @@ validator.originalWritingDate = function (originalWritingDate) {
 validator.sectionImages = function (images) {
   const errors = [];
 
-  if (!Array.isArray(images) || images.length === 0) {
+  if (!Array.isArray(images)) {
     errors.push("sectionImages must be a non-empty array of image filenames.");
   } else {
     images.forEach((img, idx) => {

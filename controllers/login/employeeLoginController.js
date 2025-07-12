@@ -5,6 +5,7 @@ const Employee = require("../../models/Employee");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const jwtConfig = require("../../config/jwtConfig");
+const generateImageUrlAndFormat = require("../../helpers/generateImageUrlAndFormat");
 
 const { getErrorObj } = require("../../helpers/getErrorObj");
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -70,11 +71,13 @@ async function login(req, res, next) {
 
     // Check if the login was saved
     if (!isLoginSaved) {
-      getErrorObj(
-        isDevelopment
-          ? "Error while saving the last login field"
-          : "Internal Server Error! Please contact your administrator.",
-        500
+      return next(
+        getErrorObj(
+          isDevelopment
+            ? "Error while saving the last login field"
+            : "Internal Server Error! Please contact your administrator.",
+          500
+        )
       );
     }
 
@@ -93,7 +96,23 @@ async function login(req, res, next) {
 
     // Convert the employee mongo instance to js object
     const employeeData = employee.toObject();
+
+    // Convert the profile picture to have the filename and the image URL
+    employeeData.employeePreferences.profilePicture =
+      await generateImageUrlAndFormat(
+        employeeData.employeePreferences.profilePicture
+      );
+
+    // Delete the password when sending
     delete employeeData.password;
+
+    // Send JWT as an HTTP-only cookie:
+    res.cookie("token", token, {
+      httpOnly: true, // Cookie inaccessible from JavaScript on client-side, preventing XSS attacks.
+      secure: true, // Send over HTTPs.
+      sameSite: "none",
+      expires: new Date(Date.now() + 3600000 * 4), // 4 hr from now
+    });
 
     // Send the response
     sendRequest({
@@ -101,7 +120,7 @@ async function login(req, res, next) {
       statusCode: 200,
       message: "User is validated!",
       data: employeeData,
-      token,
+      ...(process.env.NODE_ENV === "development" && { token }),
     });
   } catch (error) {
     next(error);

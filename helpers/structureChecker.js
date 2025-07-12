@@ -7,8 +7,9 @@ module.exports = function (structure1 = [], structure2 = [], exclude = []) {
 
   // Remove the keys iteratively
   if (Array.isArray(exclude) && exclude.length > 0) {
+    const providedKeySet = new Set(providedKeys);
     exclude.forEach((key) => {
-      if (providedKeys.includes(key)) {
+      if (providedKeySet.has(key)) {
         providedKeys.splice(providedKeys.indexOf(key), 1);
       }
     });
