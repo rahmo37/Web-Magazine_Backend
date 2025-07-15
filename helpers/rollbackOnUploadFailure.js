@@ -51,7 +51,6 @@ module.exports = async function rollbackOnUploadFailure(
 
   //  If the method is PATCH or PUT we look-into the staged files
   if (method === "PATCH" || method === "PUT") {
-    console.log(method, "<--");
     // On PATCH or PUT: delete files from stagedFileNames
     if (!tracker || tracker.stagedFileNames.length === 0) {
       return "No staged files to delete.";
@@ -79,7 +78,6 @@ module.exports = async function rollbackOnUploadFailure(
   }
   // If the method is DELETE, POST or no method is provided
   else if (method === "DELETE" || method === "POST" || !method) {
-    console.log(method, "<--");
     // Determine if we need to delete the tracker
     let isDeleteTracker = deleteTracker;
 

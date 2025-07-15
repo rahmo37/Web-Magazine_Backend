@@ -116,81 +116,86 @@ function checkID(prefix, length, message) {
   };
 }
 
+/**
+ * Validates the creator name:
+ *  - Must be provided as a non-empty string.
+ *  - Must contain exactly one underscore separating the English and Bangla names.
+ *  - The portion before the underscore must be a valid English name (letters only, with spaces, hyphens or apostrophes allowed).
+ *  - The portion after the underscore must be a valid Bangla name (Bengali letters only, with spaces allowed).
+ */
+
+// Generic function that validates names which has English_Bangla format
+function validateDualName(
+  nameValue,
+  label = "Name",
+  requireUnderscore = false,
+  requireBothParts = false,
+  example = "(e.g., John_জন)"
+) {
+  const errors = [];
+
+  if (!nameValue || typeof nameValue !== "string") {
+    errors.push(`${label} must be provided as a non-empty string.`);
+    return { valid: false, error: numberErrors(errors) };
+  }
+
+  // If underscore is required (for dual-language names)
+  if (requireUnderscore) {
+    const namesArr = nameValue.split("_");
+    if (namesArr.length !== 2) {
+      errors.push(
+        `Not a valid ${label.toLowerCase()}, an underscore should separate the English name from the Bangla name. ${example}`
+      );
+    } else {
+      const [english, bangla] = namesArr;
+      // Validate both if both are required, else check existence before validating
+      if (requireBothParts || english) {
+        if (!isEnglishName(english)) {
+          errors.push(
+            `The English part of the ${label.toLowerCase()} is invalid. Please provide a valid English name before the underscore. ${example}`
+          );
+        }
+      }
+      if (requireBothParts || bangla) {
+        if (!isBengaliName(bangla)) {
+          errors.push(
+            `The Bangla part of the ${label.toLowerCase()} is invalid. Please provide a valid Bangla name after the underscore. ${example}`
+          );
+        }
+      }
+    }
+  } else {
+    // Single-language name, usually just English or Bangla
+    if (!isEnglishName(nameValue)) {
+      errors.push(
+        `${label} must only contain letters (A-Z, a-z) and cannot have spaces, numbers, or special characters.`
+      );
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    error: numberErrors(errors),
+  };
+}
+
 //* Validation logic starts here
 
 // Module Scaffolding
 const validator = {};
 
-//! --------------------FirstName
-/**
- *  Validates that the name:
- *    - Contains only letters (A-Z, a-z).
- *    - Has no numbers, spaces, or special characters.
- *    - Is not empty.
- */
 validator.firstName = function (firstName) {
-  const errors = [];
-
-  if (!firstName || typeof firstName !== "string") {
-    errors.push("First name must be provided as a non-empty string.");
-  } else {
-    // Regex pattern to allow only letters
-    const nameRegex = /^[A-Za-z]+$/;
-    if (!nameRegex.test(firstName)) {
-      if (/\d/.test(firstName)) {
-        errors.push("First name must not contain numbers.");
-      }
-      if (/\s/.test(firstName)) {
-        errors.push("First name must not contain spaces.");
-      }
-      if (/[^A-Za-z]/.test(firstName)) {
-        errors.push(
-          "First name must only contain letters (A-Z, a-z) without any special characters."
-        );
-      }
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    error: numberErrors(errors),
-  };
+  return validateDualName(
+    firstName,
+    "First name",
+    true,
+    true,
+    "(e.g., John_জন)"
+  );
 };
 
-//! --------------------LastName
-/**
- *  Validates that the name:
- *    - Contains only letters (A-Z, a-z).
- *    - Has no numbers, spaces, or special characters.
- *    - Is not empty.
- */
 validator.lastName = function (lastName) {
-  const errors = [];
-
-  if (!lastName || typeof lastName !== "string") {
-    errors.push("Last name must be provided as a non-empty string.");
-  } else {
-    // Regex pattern to allow only letters
-    const nameRegex = /^[A-Za-z]+$/;
-    if (!nameRegex.test(lastName)) {
-      if (/\d/.test(lastName)) {
-        errors.push("Last name must not contain numbers.");
-      }
-      if (/\s/.test(lastName)) {
-        errors.push("Last name must not contain spaces.");
-      }
-      if (/[^A-Za-z]/.test(lastName)) {
-        errors.push(
-          "Last name must only contain letters (A-Z, a-z) without any special characters."
-        );
-      }
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    error: numberErrors(errors),
-  };
+  return validateDualName(lastName, "Last name", true, true, "(e.g., John_জন)");
 };
 
 //! --------------------Email
@@ -432,8 +437,6 @@ function validateDepartmentField(fieldValue, fieldName = "Department") {
     return { valid: false, error: numberErrors(errors) };
   }
 
-  console.log(fieldName);
-
   if (fieldName === "Department" && fieldValue.length === 0) {
     errors.push(`${fieldName} array must contain at least one element.`);
   }
@@ -548,48 +551,14 @@ validator.isActiveAccount = function (isActiveAccount) {
 };
 
 //! --------------------creatorName
-/**
- * Validates the creator name:
- *  - Must be provided as a non-empty string.
- *  - Must contain exactly one underscore separating the English and Bangla names.
- *  - The portion before the underscore must be a valid English name (letters only, with spaces, hyphens or apostrophes allowed).
- *  - The portion after the underscore must be a valid Bangla name (Bengali letters only, with spaces allowed).
- */
-validator.creatorName = function (name) {
-  const errors = [];
-  const EXAMPLE = "(e.g., John_জন)";
-  if (!name || typeof name !== "string") {
-    errors.push("Creator name must be provided as a non-empty string.");
-  } else {
-    const namesArr = name.split("_");
-    if (namesArr.length !== 2) {
-      errors.push(
-        "Not a valid creator name, an underscore should separate the English name from the Bangla name. " +
-          EXAMPLE
-      );
-    } else {
-      // Validate the English name part
-      if (!isEnglishName(namesArr[0])) {
-        errors.push(
-          "The English name is invalid. Please provide a valid English name before the underscore " +
-            EXAMPLE
-        );
-      }
-
-      // Validate the Bangla name part
-      if (!isBengaliName(namesArr[1])) {
-        errors.push(
-          "The Bangla name is invalid. Please provide a valid Bangla name after the underscore. " +
-            EXAMPLE
-        );
-      }
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    error: numberErrors(errors),
-  };
+validator.creatorName = function (creatorName) {
+  return validateDualName(
+    creatorName,
+    "Creator name",
+    true,
+    true,
+    "(e.g., John_জন)"
+  );
 };
 
 //! --------------------fdcID
